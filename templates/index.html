@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </h1>
+            <p class="lead text-muted">Sistem Manajemen Perkiraan Biaya Operasi</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2">Total Data PBO</h6>
+                            <h2 class="card-title mb-0">{{ total_pbo }}</h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-file-earmark-medical" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2">Input Baru</h6>
+                            <h2 class="card-title mb-0">
+                                <a href="{{ url_for('input_pbo') }}" class="text-white text-decoration-none">
+                                    <i class="bi bi-plus-circle"></i>
+                                </a>
+                            </h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-plus-square" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-2">Cari Data</h6>
+                            <h2 class="card-title mb-0">
+                                <a href="{{ url_for('search_pbo') }}" class="text-white text-decoration-none">
+                                    <i class="bi bi-search"></i>
+                                </a>
+                            </h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-search" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Aksi Cepat</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('input_pbo') }}" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-plus-circle"></i> Input Data PBO Baru
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('search_pbo') }}" class="btn btn-info btn-lg w-100">
+                                <i class="bi bi-search"></i> Cari & Lihat Data PBO
+                            </a>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <a href="{{ url_for('upload_database') }}" class="btn btn-warning btn-lg w-100">
+                                <i class="bi bi-cloud-upload"></i> Upload Database Terbaru
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent PBO Data -->
+    {% if recent_pbo %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Data PBO Terbaru</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nama Pasien</th>
+                                    <th>Nama Operasi</th>
+                                    <th>Diagnosa</th>
+                                    <th>Dokter</th>
+                                    <th>Tanggal</th>
+                                    <th>Total Biaya</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pbo in recent_pbo %}
+                                <tr>
+                                    <td>{{ pbo.id }}</td>
+                                    <td>{{ pbo.nama_pasien }}</td>
+                                    <td>{{ pbo.nama_operasi }}</td>
+                                    <td>{{ pbo.diagnosa }}</td>
+                                    <td>{{ pbo.nama_dokter }}</td>
+                                    <td>{{ pbo.tanggal }}</td>
+                                    <td>{{ pbo.total|currency }}</td>
+                                    <td>
+                                        <a href="{{ url_for('detail_pbo', pbo_id=pbo.id) }}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="Lihat Detail">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('search_pbo') }}" class="btn btn-outline-primary">
+                            Lihat Semua Data <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Information Section -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Tentang Sistem</h5>
+                </div>
+                <div class="card-body">
+                    <p>Sistem Manajemen PBO (Perkiraan Biaya Operasi) adalah aplikasi web untuk mengelola dan menghitung estimasi biaya operasi di RS Siloam TB Simatupang.</p>
+                    <h6>Fitur Utama:</h6>
+                    <ul>
+                        <li>Input data PBO dengan form lengkap</li>
+                        <li>Perhitungan otomatis biaya operasi</li>
+                        <li>Pencarian dan filter data</li>
+                        <li>Cetak form PBO</li>
+                        <li>Responsive design (mobile-friendly)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-calculator"></i> Perhitungan Biaya</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Komponen Biaya:</h6>
+                    <ul>
+                        <li><strong>Surgeon:</strong> Biaya dokter + surcharge</li>
+                        <li><strong>Anesthesi:</strong> 35% dari biaya surgeon</li>
+                        <li><strong>OT Room Charge:</strong> Biaya kamar operasi</li>
+                        <li><strong>Tarif Kamar:</strong> Otomatis berdasarkan kelas</li>
+                    </ul>
+                    <h6>Surcharge:</h6>
+                    <ul>
+                        <li>Elektif: 0% (1.0x)</li>
+                        <li>CITO: 25% (1.25x)</li>
+                        <li>Penyulit: 30% (1.30x)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

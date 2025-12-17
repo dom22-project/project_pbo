@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Data PBO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-pencil-square"></i> Edit Data PBO
+            </h1>
+            <p class="text-muted">Edit Formulir Perkiraan Biaya Operasi - ID: {{ pbo.id }}</p>
+        </div>
+    </div>
+
+    <!-- Versioning Warning -->
+    <div class="alert alert-warning">
+        <i class="bi bi-info-circle"></i>
+        <strong>Perhatian:</strong> Saat Anda menyimpan perubahan, sistem akan membuat <strong>versi baru</strong> dari data PBO ini. 
+        Data versi sebelumnya akan tetap tersimpan dan dapat dilihat di <a href="{{ url_for('pbo_history', pbo_id=pbo.id) }}" class="alert-link">history</a>.
+        {% if pbo.version_number %}
+        <br><small>Versi saat ini: <strong>{{ pbo.version_number }}</strong></small>
+        {% endif %}
+    </div>
+
+    <!-- Form (sama seperti input_pbo.html tapi dengan data pre-filled) -->
+    <form method="POST" id="pboForm">
+        <!-- Hospital Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-hospital"></i> Informasi Rumah Sakit</h5>
+            </div>
+            <div class="card-body text-center">
+                <h4>RS Siloam TB Simatupang</h4>
+                <p class="mb-0">
+                    Jl. RA Kartini No. 08 Cilandak<br>
+                    Jakarta Selatan 12430<br>
+                    Telp. (021) 29531900 Ext. 29790
+                </p>
+                <h5 class="mt-3">PERKIRAAN BIAYA OPERASI</h5>
+            </div>
+        </div>
+
+        <!-- Patient & Operation Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Data Pasien & Operasi</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nama Pasien <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama_pasien" value="{{ pbo.nama_pasien }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tanggal <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="tanggal" value="{{ pbo.tanggal }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Diagnosa <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="diagnosa" value="{{ pbo.diagnosa }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nama Operasi <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama_operasi" value="{{ pbo.nama_operasi }}" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Sifat Operasi <span class="text-danger">*</span></label>
+                        <select class="form-select" name="sifat_operasi" id="sifat_operasi" required>
+                            <option value="Elektif / Tentative" {% if pbo.sifat_operasi == "Elektif / Tentative" %}selected{% endif %}>Elektif / Tentative</option>
+                            <option value="CITO" {% if pbo.sifat_operasi == "CITO" %}selected{% endif %}>CITO</option>
+                            <option value="Penyulit" {% if pbo.sifat_operasi == "Penyulit" %}selected{% endif %}>Penyulit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Nama Dokter <span class="text-danger">*</span></label>
+                        <select class="form-select select2-doctor" name="nama_dokter" id="nama_dokter" required>
+                            <option value="">-- Pilih Dokter --</option>
+                            {% for doctor in doctors %}
+                            <option value="{{ doctor.nama_dokter }}" {% if pbo.nama_dokter == doctor.nama_dokter %}selected{% endif %}>{{ doctor.nama_dokter }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Kelas <span class="text-danger">*</span></label>
+                        <select class="form-select" name="kelas" id="kelas" required>
+                            <option value="">-- Pilih Kelas --</option>
+                            {% for kelas_option in ['BASIC', 'STANDARD', 'DELUXE', 'VIP', 'VVIP', 'SUITE', 'PRESIDENTIAL SUITE', 'ODC'] %}
+                            <option value="{{ kelas_option }}" {% if pbo.kelas == kelas_option %}selected{% endif %}>{{ kelas_option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operation Tables -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Tabel Operasi</h5>
+            </div>
+            <div class="card-body">
+                {% for i in range(1, 5) %}
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Tabel Operasi {{ i }}{% if i == 1 %} <span class="text-danger">*</span>{% endif %}</label>
+                        <select class="form-select operation-select select2-operation" name="tabel_operasi{{ i }}" id="tabel_operasi{{ i }}"{% if i == 1 %} required{% endif %}>
+                            <option value="">-- Pilih Tindakan --</option>
+                            {% for op in operations %}
+                            <option value="{{ op.kode }} - {{ op.nama_tindakan }}" {% if pbo['tabel_operasi' ~ i] == op.kode ~ ' - ' ~ op.nama_tindakan %}selected{% endif %}>
+                                {{ op.kode }} - {{ op.nama_tindakan }} (Dokter: {{ op.biaya_dokter|currency }}, RS: {{ op.biaya_rs|currency }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Persentase Operasi {{ i }}</label>
+                        <select class="form-select percentage-select" name="persentase_operasi{{ i }}" id="persentase_operasi{{ i }}">
+                            <option value="100" {% if (pbo['persentase_operasi' ~ i] * 100)|int == 100 %}selected{% endif %}>100%</option>
+                            <option value="50" {% if (pbo['persentase_operasi' ~ i] * 100)|int == 50 %}selected{% endif %}>50%</option>
+                        </select>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="text-end">
+                    <button type="button" class="btn btn-primary" id="calculateSurgeryBtn">
+                        <i class="bi bi-calculator"></i> Hitung Biaya Operasi
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Details -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Rincian Biaya</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Konsultasi Pre Tindakan</label>
+                        <input type="number" class="form-control cost-input" name="konsultasi_pre_tindakan" value="{{ pbo.konsultasi_pre_tindakan }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Diagnostic Pre Tindakan</label>
+                        <input type="number" class="form-control cost-input" name="diagnostic_pre_tindakan" value="{{ pbo.diagnostic_pre_tindakan }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Surgeon</label>
+                        <input type="number" class="form-control" name="surgeon" id="surgeon" value="{{ pbo.surgeon }}" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Anesthesi</label>
+                        <input type="number" class="form-control" name="anesthesi" id="anesthesi" value="{{ pbo.anesthesi }}" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">OT Room Charge</label>
+                        <input type="number" class="form-control" name="ot_room_charge" id="ot_room_charge" value="{{ pbo.ot_room_charge }}" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Recovery Room Charge</label>
+                        <input type="number" class="form-control cost-input" name="recovery_room_charge" value="{{ pbo.recovery_room_charge }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Alat</label>
+                        <input type="number" class="form-control cost-input" name="alat" value="{{ pbo.alat }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Diagnostic</label>
+                        <input type="number" class="form-control cost-input" name="diagnostic" value="{{ pbo.diagnostic }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Medical Equipment</label>
+                        <input type="number" class="form-control cost-input" name="medical_equipment" value="{{ pbo.medical_equipment }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Obat dan Alkes</label>
+                        <input type="number" class="form-control cost-input" name="obat_dan_alkes" value="{{ pbo.obat_dan_alkes }}" min="0" step="1000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tarif Kamar per Hari</label>
+                        <input type="number" class="form-control" name="tarif_kamar" id="tarif_kamar" value="{{ pbo.tarif_kamar }}" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><strong>TOTAL BIAYA</strong></label>
+                        <input type="number" class="form-control fw-bold" name="total" id="total" value="{{ pbo.total }}" readonly>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-success" id="calculateTotalBtn">
+                        <i class="bi bi-calculator-fill"></i> Hitung Total
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Informasi Tambahan</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Catatan</label>
+                        <textarea class="form-control" name="catatan" rows="3">{{ pbo.catatan }}</textarea>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Keterangan</label>
+                        <textarea class="form-control" name="keterangan" rows="3">{{ pbo.keterangan }}</textarea>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Hubungan dengan Pasien</label>
+                        <input type="text" class="form-control" name="hubungan_dengan_pasien" value="{{ pbo.hubungan_dengan_pasien }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Petugas Front Office</label>
+                        <input type="text" class="form-control" name="petugas_front_office" value="{{ pbo.petugas_front_office }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Perusahaan/Asuransi Penanggung</label>
+                        <input type="text" class="form-control" name="perusahaan_asuransi" value="{{ pbo.perusahaan_asuransi }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('detail_pbo', pbo_id=pbo.id) }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Update Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 CSS -->
+<link href="{{ url_for('static', filename='vendor/select2/css/select2.min.css') }}" rel="stylesheet" />
+<link href="{{ url_for('static', filename='vendor/select2/css/select2-bootstrap-5-theme.min.css') }}" rel="stylesheet" />
+
+<!-- Select2 JS -->
+<script src="{{ url_for('static', filename='vendor/select2/js/select2.min.js') }}"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2 for doctor selection with search
+    $('.select2-doctor').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Cari dan Pilih Dokter --',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "Dokter tidak ditemukan";
+            },
+            searching: function() {
+                return "Mencari...";
+            }
+        }
+    });
+    
+    // Initialize Select2 for operation tables with search
+    $('.select2-operation').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "Tindakan tidak ditemukan";
+            },
+            searching: function() {
+                return "Mencari...";
+            },
+            inputTooShort: function() {
+                return "Ketik untuk mencari tindakan...";
+            }
+        }
+    });
+    
+    // Same JavaScript as input_pbo.html
+    $('#kelas').change(function() {
+        const kelas = $(this).val();
+        
+        $.ajax({
+            url: '/api/get-room-rate',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ kelas: kelas }),
+            success: function(response) {
+                if (response.success) {
+                    $('#tarif_kamar').val(response.tarif_kamar);
+                    calculateTotal();
+                }
+            }
+        });
+    });
+
+    $('#calculateSurgeryBtn, .operation-select, .percentage-select, #sifat_operasi').change(function() {
+        calculateSurgeryFees();
+    });
+
+    function calculateSurgeryFees() {
+        const data = {
+            sifat_operasi: $('#sifat_operasi').val(),
+            tabel_operasi1: $('#tabel_operasi1').val(),
+            tabel_operasi2: $('#tabel_operasi2').val(),
+            tabel_operasi3: $('#tabel_operasi3').val(),
+            tabel_operasi4: $('#tabel_operasi4').val(),
+            persentase_operasi1: $('#persentase_operasi1').val(),
+            persentase_operasi2: $('#persentase_operasi2').val(),
+            persentase_operasi3: $('#persentase_operasi3').val(),
+            persentase_operasi4: $('#persentase_operasi4').val()
+        };
+
+        $.ajax({
+            url: '/api/calculate-surgery-fees',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    $('#surgeon').val(response.data.surgeon);
+                    $('#anesthesi').val(response.data.anesthesi);
+                    $('#ot_room_charge').val(response.data.ot_room_charge);
+                    calculateTotal();
+                }
+            }
+        });
+    }
+
+    $('.cost-input').on('input', function() {
+        calculateTotal();
+    });
+
+    $('#calculateTotalBtn').click(function() {
+        calculateTotal();
+    });
+
+    function calculateTotal() {
+        const data = {
+            konsultasi_pre_tindakan: $('[name="konsultasi_pre_tindakan"]').val() || 0,
+            diagnostic_pre_tindakan: $('[name="diagnostic_pre_tindakan"]').val() || 0,
+            surgeon: $('#surgeon').val() || 0,
+            anesthesi: $('#anesthesi').val() || 0,
+            ot_room_charge: $('#ot_room_charge').val() || 0,
+            recovery_room_charge: $('[name="recovery_room_charge"]').val() || 0,
+            alat: $('[name="alat"]').val() || 0,
+            diagnostic: $('[name="diagnostic"]').val() || 0,
+            medical_equipment: $('[name="medical_equipment"]').val() || 0,
+            obat_dan_alkes: $('[name="obat_dan_alkes"]').val() || 0,
+            tarif_kamar: $('#tarif_kamar').val() || 0
+        };
+
+        $.ajax({
+            url: '/api/calculate-total',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    $('#total').val(response.total);
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

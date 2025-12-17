@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}Input Data PBO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-plus-circle"></i> Input Data PBO
+            </h1>
+            <p class="text-muted">Formulir Perkiraan Biaya Operasi</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" id="pboForm">
+        <!-- Hospital Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-hospital"></i> Informasi Rumah Sakit</h5>
+            </div>
+            <div class="card-body text-center">
+                <h4>RS Siloam TB Simatupang</h4>
+                <p class="mb-0">
+                    Jl. RA Kartini No. 08 Cilandak<br>
+                    Jakarta Selatan 12430<br>
+                    Telp. (021) 29531900 Ext. 29790
+                </p>
+                <h5 class="mt-3">PERKIRAAN BIAYA OPERASI</h5>
+            </div>
+        </div>
+
+        <!-- Patient & Operation Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Data Pasien & Operasi</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nama Pasien <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama_pasien" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tanggal <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="tanggal" value="{{ today }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Diagnosa <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="diagnosa" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nama Operasi <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama_operasi" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Sifat Operasi <span class="text-danger">*</span></label>
+                        <select class="form-select" name="sifat_operasi" id="sifat_operasi" required>
+                            <option value="Elektif / Tentative">Elektif / Tentative</option>
+                            <option value="CITO">CITO</option>
+                            <option value="Penyulit">Penyulit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Nama Dokter <span class="text-danger">*</span></label>
+                        <select class="form-select select2-doctor" name="nama_dokter" id="nama_dokter" required>
+                            <option value="">-- Pilih Dokter --</option>
+                            {% for doctor in doctors %}
+                            <option value="{{ doctor.nama_dokter }}">{{ doctor.nama_dokter }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Kelas <span class="text-danger">*</span></label>
+                        <select class="form-select" name="kelas" id="kelas" required>
+                            <option value="">-- Pilih Kelas --</option>
+                            <option value="BASIC">BASIC</option>
+                            <option value="STANDARD">STANDARD</option>
+                            <option value="DELUXE">DELUXE</option>
+                            <option value="VIP">VIP</option>
+                            <option value="VVIP">VVIP</option>
+                            <option value="SUITE">SUITE</option>
+                            <option value="PRESIDENTIAL SUITE">PRESIDENTIAL SUITE</option>
+                            <option value="ODC">ODC</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operation Tables (Dynamic) -->
+        <div class="card mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Tabel Operasi</h5>
+                <button type="button" class="btn btn-success btn-sm" id="addOperationBtn">
+                    <i class="bi bi-plus-circle"></i> Tambah Baris
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="operationTableContainer">
+                    <!-- Dynamic operation rows will be added here -->
+                </div>
+                <div class="text-end mt-3">
+                    <button type="button" class="btn btn-primary" id="calculateSurgeryBtn">
+                        <i class="bi bi-calculator"></i> Hitung Biaya Operasi
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Details -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-currency-dollar"></i> Rincian Biaya</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Konsultasi Pre Tindakan</label>
+                        <input type="text" class="form-control cost-input" name="konsultasi_pre_tindakan" value="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Diagnostic Pre Tindakan</label>
+                        <input type="text" class="form-control cost-input" name="diagnostic_pre_tindakan" value="0">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Surgeon</label>
+                        <input type="text" class="form-control" name="surgeon" id="surgeon" value="0" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Anesthesi</label>
+                        <input type="text" class="form-control cost-input" name="anesthesi" id="anesthesi" value="0">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">OT Room Charge</label>
+                        <input type="text" class="form-control cost-input" name="ot_room_charge" id="ot_room_charge" value="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Recovery Room Charge</label>
+                        <input type="text" class="form-control cost-input" name="recovery_room_charge" value="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Alat</label>
+                        <input type="text" class="form-control cost-input" name="alat" value="0">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Diagnostic</label>
+                        <input type="text" class="form-control cost-input" name="diagnostic" value="0">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Medical Equipment</label>
+                        <input type="text" class="form-control cost-input" name="medical_equipment" value="0">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Obat dan Alkes</label>
+                        <input type="text" class="form-control cost-input" name="obat_dan_alkes" value="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tarif Kamar per Hari</label>
+                        <input type="text" class="form-control" name="tarif_kamar" id="tarif_kamar" value="0" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><strong>TOTAL BIAYA</strong></label>
+                        <input type="text" class="form-control fw-bold" name="total" id="total" value="0" readonly>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-success" id="calculateTotalBtn">
+                        <i class="bi bi-calculator-fill"></i> Hitung Total
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Informasi Tambahan</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Catatan</label>
+                        <textarea class="form-control" name="catatan" rows="8">Merupakan Perkiraan Biaya Operasi dan perawatan dalam kondisi normal tanpa penyulit / cito / komplikasi.
+
+Bila tindakan cito saat operasi akan dikenakan biaya tambahan kurang lebih 25% untuk surgeon, anasthesi, dan OT room
+
+Bila ditemukan penyulit saat operasi akan dikenakan biaya tambahan kurang lebih 30% untuk surgeon, anasthesi, dan OT room
+
+Biaya di atas belum termasuk tagihan emergency atau UGD dan perawatan post tindakan
+
+Biaya estimasi di atas belum termasuk biaya administrasi sebesar 6% atau maksimal Rp 8.000.000
+
+Tindakan dapat dilakukan setelah jamman awal atau deposit sesuai estimasi telah diterima dengan ketentuan maksimal 2 jam sebelum tindakan
+
+Tidak berlaku apabila ada perpindahan kelas perawatan (biaya mengikuti kelas tertinggi)</textarea>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Keterangan</label>
+                        <textarea class="form-control" name="keterangan" rows="3"></textarea>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Hubungan dengan Pasien</label>
+                        <input type="text" class="form-control" name="hubungan_dengan_pasien">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Petugas Front Office</label>
+                        <input type="text" class="form-control" name="petugas_front_office">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Perusahaan/Asuransi Penanggung</label>
+                        <input type="text" class="form-control" name="perusahaan_asuransi">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Batal
+                    </a>
+                    <button type="reset" class="btn btn-warning">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset Form
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Simpan Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 CSS -->
+<link href="{{ url_for('static', filename='vendor/select2/css/select2.min.css') }}" rel="stylesheet" />
+<link href="{{ url_for('static', filename='vendor/select2/css/select2-bootstrap-5-theme.min.css') }}" rel="stylesheet" />
+
+<!-- Select2 JS -->
+<script src="{{ url_for('static', filename='vendor/select2/js/select2.min.js') }}"></script>
+
+<!-- Data for dynamic operations -->
+<script>
+// Global data from backend
+let operationsData = {{ operations|tojson|safe }};
+let tindakanItemsData = {{ tindakan_items|tojson|safe }};
+</script>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2 for doctor selection with search
+    $('.select2-doctor').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Cari dan Pilih Dokter --',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "Dokter tidak ditemukan";
+            },
+            searching: function() {
+                return "Mencari...";
+            }
+        }
+    });
+    
+    // Initialize Select2 for operation tables with search
+    $('.select2-operation').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "Tindakan tidak ditemukan";
+            },
+            searching: function() {
+                return "Mencari...";
+            },
+            inputTooShort: function() {
+                return "Ketik untuk mencari tindakan...";
+            }
+        }
+    });
+    // Auto-calculate room rate when class changes and filter tindakan items
+    $('#kelas').change(function() {
+        const kelas = $(this).val();
+        
+        // Update room rate
+        $.ajax({
+            url: '/api/get-room-rate',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ kelas: kelas }),
+            success: function(response) {
+                if (response.success) {
+                    $('#tarif_kamar').val(response.tarif_kamar);
+                    calculateTotal();
+                }
+            }
+        });
+        
+        // Filter tindakan items based on selected class
+        if (kelas) {
+            $.ajax({
+                url: '/api/get-tindakan-by-kelas',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ kelas: kelas }),
+                success: function(response) {
+                    if (response.success) {
+                        // Update global data
+                        tindakanItemsData = response.tindakan_items;
+                        operationsData = response.operations;
+                        
+                        // Update all existing operation dropdowns
+                        updateAllOperationDropdowns();
+                        
+                        // Show notification
+                        const totalItems = response.operations.length + response.tindakan_items.length;
+                        if (totalItems === 0) {
+                            console.log('Tidak ada tindakan untuk kelas ' + kelas);
+                        } else {
+                            console.log('Ditemukan ' + response.operations.length + ' tabel operasi dan ' + response.tindakan_items.length + ' tindakan untuk kelas ' + kelas);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching tindakan items:', error);
+                }
+            });
+        } else {
+            // If no class selected, show all items
+            tindakanItemsData = {{ tindakan_items|tojson|safe }};
+            operationsData = {{ operations|tojson|safe }};
+            updateAllOperationDropdowns();
+        }
+    });
+    
+    // Function to update all operation dropdowns with filtered tindakan
+    function updateAllOperationDropdowns() {
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const selectElement = $(`#tabel_operasi${rowId}`);
+            const currentValue = selectElement.val();
+            
+            // Rebuild options
+            let optionsHtml = '<option value="">-- Pilih Tindakan --</option>';
+            
+            // Add operation tables (always shown)
+            optionsHtml += '<optgroup label="📋 Tabel Operasi Standard">';
+            operationsData.forEach(op => {
+                optionsHtml += `
+                    <option value="${op.kode} - ${op.nama_tindakan}">
+                        ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                    </option>
+                `;
+            });
+            optionsHtml += '</optgroup>';
+            
+            // Add filtered tindakan items
+            if (tindakanItemsData.length > 0) {
+                optionsHtml += '<optgroup label="🏥 Data Tindakan Terbaru">';
+                tindakanItemsData.forEach(item => {
+                    optionsHtml += `
+                        <option value="TINDAKAN-${item.id} - ${item.nama_tindakan}" 
+                                data-kelas="${item.kelas}" 
+                                data-kategory="${item.kategory}"
+                                data-amount="${item.amount}">
+                            ${item.nama_tindakan} - ${item.kelas} (${item.kategory}) - Rp ${formatNumber(item.amount)}
+                        </option>
+                    `;
+                });
+                optionsHtml += '</optgroup>';
+            }
+            
+            // Update select element
+            selectElement.html(optionsHtml);
+            
+            // Try to restore previous value if it still exists
+            if (currentValue) {
+                const optionExists = selectElement.find(`option[value="${currentValue}"]`).length > 0;
+                if (optionExists) {
+                    selectElement.val(currentValue);
+                } else {
+                    // If previous value doesn't exist in filtered list, clear it
+                    selectElement.val('');
+                }
+            }
+            
+            // Trigger Select2 update
+            selectElement.trigger('change.select2');
+        });
+    }
+
+    // Calculate surgery fees
+    $('#calculateSurgeryBtn, .operation-select, .percentage-select, #sifat_operasi').change(function() {
+        calculateSurgeryFees();
+    });
+
+    function calculateSurgeryFees() {
+        const data = {
+            sifat_operasi: $('#sifat_operasi').val(),
+            tabel_operasi1: $('#tabel_operasi1').val(),
+            tabel_operasi2: $('#tabel_operasi2').val(),
+            tabel_operasi3: $('#tabel_operasi3').val(),
+            tabel_operasi4: $('#tabel_operasi4').val(),
+            persentase_operasi1: $('#persentase_operasi1').val(),
+            persentase_operasi2: $('#persentase_operasi2').val(),
+            persentase_operasi3: $('#persentase_operasi3').val(),
+            persentase_operasi4: $('#persentase_operasi4').val()
+        };
+
+        $.ajax({
+            url: '/api/calculate-surgery-fees',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    $('#surgeon').val(response.data.surgeon);
+                    $('#anesthesi').val(response.data.anesthesi);
+                    $('#ot_room_charge').val(response.data.ot_room_charge);
+                    calculateTotal();
+                }
+            }
+        });
+    }
+
+    // Calculate total when any cost input changes
+    $('.cost-input').on('input', function() {
+        calculateTotal();
+    });
+
+    $('#calculateTotalBtn').click(function() {
+        calculateTotal();
+    });
+
+    function calculateTotal() {
+        const data = {
+            konsultasi_pre_tindakan: $('#konsultasi_pre_tindakan').val() || 0,
+            diagnostic_pre_tindakan: $('[name="diagnostic_pre_tindakan"]').val() || 0,
+            surgeon: $('#surgeon').val() || 0,
+            anesthesi: $('#anesthesi').val() || 0,
+            ot_room_charge: $('#ot_room_charge').val() || 0,
+            recovery_room_charge: $('[name="recovery_room_charge"]').val() || 0,
+            alat: $('[name="alat"]').val() || 0,
+            diagnostic: $('[name="diagnostic"]').val() || 0,
+            medical_equipment: $('[name="medical_equipment"]').val() || 0,
+            obat_dan_alkes: $('[name="obat_dan_alkes"]').val() || 0,
+            tarif_kamar: $('#tarif_kamar').val() || 0
+        };
+
+        $.ajax({
+            url: '/api/calculate-total',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    $('#total').val(response.total);
+                }
+            }
+        });
+    }
+
+    // ===== DYNAMIC OPERATION TABLE FUNCTIONALITY =====
+    let operationCounter = 0;
+
+    // Add first row on page load
+    addOperationRow();
+
+    // Add operation row button
+    $('#addOperationBtn').click(function() {
+        addOperationRow();
+    });
+
+    function addOperationRow() {
+        operationCounter++;
+        const isFirst = operationCounter === 1;
+        
+        const rowHtml = `
+            <div class="row mb-3 operation-row" id="operation_row_${operationCounter}" data-row-id="${operationCounter}">
+                <div class="col-md-1">
+                    <label class="form-label">No.</label>
+                    <input type="text" class="form-control text-center" value="${operationCounter}" readonly>
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label">Tindakan Operasi ${isFirst ? '<span class="text-danger">*</span>' : ''}</label>
+                    <select class="form-select operation-select" name="tabel_operasi${operationCounter}" id="tabel_operasi${operationCounter}" ${isFirst ? 'required' : ''}>
+                        <option value="">-- Pilih Tindakan --</option>
+                        <optgroup label="📋 Tabel Operasi Standard">
+                            ${operationsData.map(op => `
+                                <option value="${op.kode} - ${op.nama_tindakan}">
+                                    ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                                </option>
+                            `).join('')}
+                        </optgroup>
+                        <optgroup label="🏥 Data Tindakan Terbaru">
+                            ${tindakanItemsData.map(item => `
+                                <option value="TINDAKAN-${item.id} - ${item.nama_tindakan}" 
+                                        data-kelas="${item.kelas}" 
+                                        data-kategory="${item.kategory}"
+                                        data-amount="${item.amount}">
+                                    ${item.nama_tindakan} - ${item.kelas} (${item.kategory}) - Rp ${formatNumber(item.amount)}
+                                </option>
+                            `).join('')}
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Persentase</label>
+                    <select class="form-select percentage-select" name="persentase_operasi${operationCounter}" id="persentase_operasi${operationCounter}">
+                        <option value="20">20%</option>
+                        <option value="30">30%</option>
+                        <option value="35">35%</option>
+                        <option value="50">50%</option>
+                        <option value="75">75%</option>
+                        <option value="100" selected>100%</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-danger btn-sm w-100 remove-operation" data-row-id="${operationCounter}" ${isFirst ? 'disabled' : ''}>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        $('#operationTableContainer').append(rowHtml);
+        
+        // Initialize Select2 for the new row
+        $(`#tabel_operasi${operationCounter}`).select2({
+            theme: 'bootstrap-5',
+            placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "Tindakan tidak ditemukan";
+                },
+                searching: function() {
+                    return "Mencari...";
+                },
+                inputTooShort: function() {
+                    return "Ketik untuk mencari tindakan...";
+                }
+            }
+        });
+
+        // Bind change event for calculation
+        $(`#tabel_operasi${operationCounter}, #persentase_operasi${operationCounter}`).change(function() {
+            calculateSurgeryFees();
+        });
+
+        // Update row numbers
+        updateRowNumbers();
+    }
+
+    // Remove operation row
+    $(document).on('click', '.remove-operation', function() {
+        const rowId = $(this).data('row-id');
+        $(`#operation_row_${rowId}`).remove();
+        updateRowNumbers();
+        calculateSurgeryFees();
+    });
+
+    function updateRowNumbers() {
+        let rowNumber = 1;
+        $('.operation-row').each(function() {
+            $(this).find('input[readonly]').val(rowNumber);
+            rowNumber++;
+        });
+    }
+
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('id-ID');
+    }
+
+    // Format currency input with thousand separators
+    function formatCurrencyInput(input) {
+        let value = input.value.replace(/\./g, ''); // Remove existing dots
+        if (value === '' || isNaN(value)) {
+            input.value = '';
+            return;
+        }
+        // Format with thousand separators
+        input.value = parseInt(value).toLocaleString('id-ID');
+    }
+
+    // Parse currency input to number
+    function parseCurrencyInput(input) {
+        return parseInt(input.value.replace(/\./g, '') || '0');
+    }
+
+    // Apply currency formatting to all number inputs
+    $('.cost-input, #surgeon, #anesthesi, #ot_room_charge, #tarif_kamar, #total').on('input', function() {
+        formatCurrencyInput(this);
+    });
+
+    // When form is submitted, convert formatted values back to numbers
+    $('#pboForm').on('submit', function(e) {
+        $('.cost-input, #surgeon, #anesthesi, #ot_room_charge, #tarif_kamar, #total').each(function() {
+            const numValue = parseCurrencyInput(this);
+            $(this).val(numValue);
+        });
+    });
+
+});
+</script>
+{% endblock %}

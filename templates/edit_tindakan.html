@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tindakan{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-pencil-square"></i> Edit Tindakan
+            </h1>
+            <p class="text-muted">Form untuk mengedit data tindakan</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Form Edit Tindakan</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nama Tindakan <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama_tindakan" value="{{ tindakan.nama_tindakan }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Kelas <span class="text-danger">*</span></label>
+                        <select class="form-select" name="kelas" required>
+                            <option value="">-- Pilih Kelas --</option>
+                            <option value="BASIC" {% if tindakan.kelas == 'BASIC' %}selected{% endif %}>BASIC</option>
+                            <option value="STANDARD" {% if tindakan.kelas == 'STANDARD' %}selected{% endif %}>STANDARD</option>
+                            <option value="DELUXE" {% if tindakan.kelas == 'DELUXE' %}selected{% endif %}>DELUXE</option>
+                            <option value="VIP" {% if tindakan.kelas == 'VIP' %}selected{% endif %}>VIP</option>
+                            <option value="VVIP" {% if tindakan.kelas == 'VVIP' %}selected{% endif %}>VVIP</option>
+                            <option value="SUITE" {% if tindakan.kelas == 'SUITE' %}selected{% endif %}>SUITE</option>
+                            <option value="PRESIDENTIAL SUITE" {% if tindakan.kelas == 'PRESIDENTIAL SUITE' %}selected{% endif %}>PRESIDENTIAL SUITE</option>
+                            <option value="ODC" {% if tindakan.kelas == 'ODC' %}selected{% endif %}>ODC</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Kategory <span class="text-danger">*</span></label>
+                        <select class="form-select" name="kategory" required>
+                            <option value="">-- Pilih Kategory --</option>
+                            <option value="Konsultasi" {% if tindakan.kategory == 'Konsultasi' %}selected{% endif %}>Konsultasi</option>
+                            <option value="Diagnostic Pre Tindakan" {% if tindakan.kategory == 'Diagnostic Pre Tindakan' %}selected{% endif %}>Diagnostic Pre Tindakan</option>
+                            <option value="Diagnostic" {% if tindakan.kategory == 'Diagnostic' %}selected{% endif %}>Diagnostic</option>
+                            <option value="Medical Equipment" {% if tindakan.kategory == 'Medical Equipment' %}selected{% endif %}>Medical Equipment</option>
+                            <option value="Obat" {% if tindakan.kategory == 'Obat' %}selected{% endif %}>Obat</option>
+                            <option value="Obat dan Alkes" {% if tindakan.kategory == 'Obat dan Alkes' %}selected{% endif %}>Obat dan Alkes</option>
+                            <option value="Alat" {% if tindakan.kategory == 'Alat' %}selected{% endif %}>Alat</option>
+                            <option value="Recovery" {% if tindakan.kategory == 'Recovery' %}selected{% endif %}>Recovery</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Sales Item Type</label>
+                        <input type="text" class="form-control" name="sales_item_type" value="{{ tindakan.sales_item_type }}">
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Harga (Amount) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="amount" value="{{ tindakan.amount }}" min="0" step="1000" required>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                    <a href="{{ url_for('view_tindakan') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

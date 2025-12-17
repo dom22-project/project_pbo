@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Perbandingan Versi PBO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="bi bi-arrow-left-right"></i> Perbandingan Versi PBO
+                    </h1>
+                    <p class="text-muted">{{ comparison.version1.nama_pasien }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('pbo_history', pbo_id=comparison.version1.id) }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Kembali ke History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version Headers -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark"></i> Versi {{ comparison.version1.version_number }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>ID:</strong> {{ comparison.version1.id }}</p>
+                    <p><strong>Tanggal:</strong> {{ comparison.version1.tanggal }}</p>
+                    <p><strong>Total:</strong> <span class="text-primary fs-5">{{ comparison.version1.total|currency }}</span></p>
+                    {% if comparison.version1.edited_by %}
+                    <p><strong>Diedit oleh:</strong> {{ comparison.version1.edited_by }}</p>
+                    <p><strong>Waktu Edit:</strong> {{ comparison.version1.edited_at }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-check"></i> Versi {{ comparison.version2.version_number }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>ID:</strong> {{ comparison.version2.id }}</p>
+                    <p><strong>Tanggal:</strong> {{ comparison.version2.tanggal }}</p>
+                    <p><strong>Total:</strong> <span class="text-success fs-5">{{ comparison.version2.total|currency }}</span></p>
+                    {% if comparison.version2.edited_by %}
+                    <p><strong>Diedit oleh:</strong> {{ comparison.version2.edited_by }}</p>
+                    <p><strong>Waktu Edit:</strong> {{ comparison.version2.edited_at }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Differences -->
+    {% if comparison.has_differences %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle"></i> Perbedaan Ditemukan ({{ comparison.differences|length }} field)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="30%">Field</th>
+                            <th width="35%">Versi {{ comparison.version1.version_number }}</th>
+                            <th width="35%">Versi {{ comparison.version2.version_number }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for diff in comparison.differences %}
+                        <tr>
+                            <td><strong>{{ diff.field|replace('_', ' ')|title }}</strong></td>
+                            <td class="bg-light">
+                                {% if diff.field in ['total', 'surgeon', 'anesthesi', 'ot_room_charge', 'recovery_room_charge', 'alat', 'diagnostic', 'medical_equipment', 'obat_dan_alkes', 'tarif_kamar', 'konsultasi_pre_tindakan', 'diagnostic_pre_tindakan'] %}
+                                    {{ diff.version1_value|currency }}
+                                {% elif diff.field in ['persentase_operasi1', 'persentase_operasi2', 'persentase_operasi3', 'persentase_operasi4'] %}
+                                    {{ diff.version1_value|percentage }}
+                                {% else %}
+                                    {{ diff.version1_value or '-' }}
+                                {% endif %}
+                            </td>
+                            <td class="bg-warning bg-opacity-25">
+                                {% if diff.field in ['total', 'surgeon', 'anesthesi', 'ot_room_charge', 'recovery_room_charge', 'alat', 'diagnostic', 'medical_equipment', 'obat_dan_alkes', 'tarif_kamar', 'konsultasi_pre_tindakan', 'diagnostic_pre_tindakan'] %}
+                                    {{ diff.version2_value|currency }}
+                                {% elif diff.field in ['persentase_operasi1', 'persentase_operasi2', 'persentase_operasi3', 'persentase_operasi4'] %}
+                                    {{ diff.version2_value|percentage }}
+                                {% else %}
+                                    {{ diff.version2_value or '-' }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle"></i>
+        <strong>Tidak ada perbedaan</strong> antara kedua versi ini.
+    </div>
+    {% endif %}
+
+    <!-- Full Comparison -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Perbandingan Lengkap</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Version 1 -->
+                <div class="col-md-6">
+                    <h6 class="text-primary">Versi {{ comparison.version1.version_number }}</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th width="50%">Diagnosa:</th>
+                            <td>{{ comparison.version1.diagnosa }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nama Operasi:</th>
+                            <td>{{ comparison.version1.nama_operasi }}</td>
+                        </tr>
+                        <tr>
+                            <th>Sifat Operasi:</th>
+                            <td>{{ comparison.version1.sifat_operasi }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nama Dokter:</th>
+                            <td>{{ comparison.version1.nama_dokter }}</td>
+                        </tr>
+                        <tr>
+                            <th>Kelas:</th>
+                            <td>{{ comparison.version1.kelas }}</td>
+                        </tr>
+                        <tr>
+                            <th>Surgeon:</th>
+                            <td>{{ comparison.version1.surgeon|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>Anesthesi:</th>
+                            <td>{{ comparison.version1.anesthesi|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>OT Room Charge:</th>
+                            <td>{{ comparison.version1.ot_room_charge|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>Tarif Kamar:</th>
+                            <td>{{ comparison.version1.tarif_kamar|currency }}</td>
+                        </tr>
+                        <tr class="table-primary">
+                            <th>TOTAL:</th>
+                            <td><strong>{{ comparison.version1.total|currency }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Version 2 -->
+                <div class="col-md-6">
+                    <h6 class="text-success">Versi {{ comparison.version2.version_number }}</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th width="50%">Diagnosa:</th>
+                            <td>{{ comparison.version2.diagnosa }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nama Operasi:</th>
+                            <td>{{ comparison.version2.nama_operasi }}</td>
+                        </tr>
+                        <tr>
+                            <th>Sifat Operasi:</th>
+                            <td>{{ comparison.version2.sifat_operasi }}</td>
+                        </tr>
+                        <tr>
+                            <th>Nama Dokter:</th>
+                            <td>{{ comparison.version2.nama_dokter }}</td>
+                        </tr>
+                        <tr>
+                            <th>Kelas:</th>
+                            <td>{{ comparison.version2.kelas }}</td>
+                        </tr>
+                        <tr>
+                            <th>Surgeon:</th>
+                            <td>{{ comparison.version2.surgeon|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>Anesthesi:</th>
+                            <td>{{ comparison.version2.anesthesi|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>OT Room Charge:</th>
+                            <td>{{ comparison.version2.ot_room_charge|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>Tarif Kamar:</th>
+                            <td>{{ comparison.version2.tarif_kamar|currency }}</td>
+                        </tr>
+                        <tr class="table-success">
+                            <th>TOTAL:</th>
+                            <td><strong>{{ comparison.version2.total|currency }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

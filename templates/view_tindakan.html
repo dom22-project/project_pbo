@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Data Tindakan Items{% endblock %}
+
+{% block extra_css %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-list-check"></i> Data Tindakan Items
+            </h1>
+            <p class="text-muted">Daftar lengkap tindakan items yang telah diimport dari database</p>
+        </div>
+    </div>
+
+    <!-- Statistics Card -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h2 class="text-primary mb-0">{{ total_items }}</h2>
+                    <small class="text-muted">Total Tindakan Items</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Info:</strong> Data ini dapat dikelola secara manual atau diimport dari Excel.
+                <a href="{{ url_for('add_tindakan') }}" class="alert-link">Tambah Tindakan Baru</a> atau 
+                <a href="{{ url_for('upload_database') }}" class="alert-link">Upload Database</a>.
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Daftar Tindakan Items</h5>
+                    <a href="{{ url_for('add_tindakan') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-plus-circle"></i> Tambah Tindakan
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if tindakan_items %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="tindakanTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 5%;">No</th>
+                                    <th style="width: 25%;">Nama Tindakan</th>
+                                    <th style="width: 10%;">Kelas</th>
+                                    <th style="width: 20%;">Kategory</th>
+                                    <th style="width: 20%;">Sales Item Type</th>
+                                    <th style="width: 15%;" class="text-end">Amount</th>
+                                    <th style="width: 5%;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tindakan_items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td><strong>{{ item.nama_tindakan }}</strong></td>
+                                    <td>
+                                        {% if item.kelas %}
+                                        <span class="badge bg-info">{{ item.kelas }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.kategory %}
+                                        {{ item.kategory }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.sales_item_type %}
+                                        <small class="text-muted">{{ item.sales_item_type }}</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ item.amount|currency }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-info" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#detailModal{{ item.id }}"
+                                                    title="Lihat Detail">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <a href="{{ url_for('edit_tindakan', tindakan_id=item.id) }}" 
+                                               class="btn btn-outline-warning"
+                                               title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button class="btn btn-outline-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#deleteModal{{ item.id }}"
+                                                    title="Hapus">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Detail Modal -->
+                                <div class="modal fade" id="detailModal{{ item.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title">
+                                                    <i class="bi bi-info-circle"></i> Detail Tindakan
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <table class="table table-borderless">
+                                                    <tr>
+                                                        <th style="width: 40%;">Nama Tindakan:</th>
+                                                        <td>{{ item.nama_tindakan }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Kelas:</th>
+                                                        <td>
+                                                            {% if item.kelas %}
+                                                            <span class="badge bg-info">{{ item.kelas }}</span>
+                                                            {% else %}
+                                                            <span class="text-muted">-</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Kategory:</th>
+                                                        <td>{{ item.kategory if item.kategory else '-' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Sales Item Type:</th>
+                                                        <td>{{ item.sales_item_type if item.sales_item_type else '-' }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Amount:</th>
+                                                        <td><strong class="text-primary">{{ item.amount|currency }}</strong></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Created At:</th>
+                                                        <td><small class="text-muted">{{ item.created_at }}</small></td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal{{ item.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title">
+                                                    <i class="bi bi-exclamation-triangle"></i> Konfirmasi Hapus
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Apakah Anda yakin ingin menghapus tindakan ini?</p>
+                                                <div class="alert alert-warning">
+                                                    <strong>{{ item.nama_tindakan }}</strong><br>
+                                                    <small>Kelas: {{ item.kelas }} | Kategory: {{ item.kategory }}</small>
+                                                </div>
+                                                <p class="text-danger"><small><i class="bi bi-exclamation-circle"></i> Tindakan ini tidak dapat dibatalkan!</small></p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                <form method="POST" action="{{ url_for('delete_tindakan', tindakan_id=item.id) }}" style="display: inline;">
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="bi bi-trash"></i> Hapus
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Info -->
+                    <div class="mt-3">
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Menampilkan {{ tindakan_items|length }} dari {{ total_items }} tindakan items
+                        </p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Tidak ada data tindakan items.</strong><br>
+                        Silakan upload database terlebih dahulu melalui menu 
+                        <a href="{{ url_for('upload_database') }}" class="alert-link">Upload Database</a>.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
+            </a>
+            <a href="{{ url_for('upload_database') }}" class="btn btn-primary">
+                <i class="bi bi-cloud-upload"></i> Upload Database Baru
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- DataTables Script -->
+<script>
+$(document).ready(function() {
+    $('#tindakanTable').DataTable({
+        "pageLength": 25,
+        "order": [[1, "asc"]],
+        "language": {
+            "search": "Cari:",
+            "lengthMenu": "Tampilkan _MENU_ data per halaman",
+            "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
+            "infoEmpty": "Tidak ada data",
+            "infoFiltered": "(difilter dari _MAX_ total data)",
+            "paginate": {
+                "first": "Pertama",
+                "last": "Terakhir",
+                "next": "Selanjutnya",
+                "previous": "Sebelumnya"
+            },
+            "zeroRecords": "Tidak ada data yang cocok"
+        }
+    });
+});
+</script>
+{% endblock %}

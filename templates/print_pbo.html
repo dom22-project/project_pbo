@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak PBO - {{ pbo.nama_pasien }}</title>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            @page { 
+                margin: 0.5cm;
+                size: A4 portrait;
+            }
+            body {
+                margin: 0;
+                padding: 10px;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 9pt;
+            line-height: 1.2;
+            margin: 10px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 8px;
+        }
+        
+        .header img {
+            margin-bottom: 3px;
+        }
+        
+        .header h2 {
+            margin: 3px 0;
+            font-size: 13pt;
+        }
+        
+        .header p {
+            margin: 1px 0;
+            font-size: 8pt;
+        }
+        
+        .title {
+            text-align: center;
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 8px 0;
+            text-decoration: underline;
+        }
+        
+        .section {
+            margin-bottom: 10px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            font-size: 9pt;
+            margin-bottom: 5px;
+            background-color: #f0f0f0;
+            padding: 3px 8px;
+            border-left: 3px solid #333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        
+        table.info-table td {
+            padding: 2px;
+            border: none;
+            font-size: 8pt;
+        }
+        
+        table.info-table td:first-child {
+            width: 28%;
+            font-weight: bold;
+        }
+        
+        table.bordered {
+            border: 1px solid #333;
+        }
+        
+        table.bordered th,
+        table.bordered td {
+            border: 1px solid #333;
+            padding: 4px;
+            text-align: left;
+            font-size: 8pt;
+        }
+        
+        table.bordered th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .total-row {
+            background-color: #e8f4f8;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+        
+        .signature-section {
+            margin-top: 15px;
+            page-break-inside: avoid;
+        }
+        
+        .signature-box {
+            display: inline-block;
+            width: 48%;
+            vertical-align: top;
+            font-size: 8pt;
+        }
+        
+        .signature-box p {
+            margin: 2px 0;
+        }
+        
+        .signature-line {
+            margin-top: 30px;
+            border-top: 1px solid #333;
+            padding-top: 3px;
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .print-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Button -->
+    <button onclick="window.print()" class="print-button no-print">
+        🖨️ Cetak / Print
+    </button>
+
+    <!-- Header -->
+    <div class="header">
+        <img src="{{ url_for('static', filename='images/logo siloam.png') }}" alt="Logo RS Siloam" width="100" height="50"/> 
+        <h2>RS Siloam TB Simatupang</h2>
+        <p>Jl. RA Kartini No. 08 Cilandak</p>
+        <p>Jakarta Selatan 12430</p>
+        <p>Telp. (021) 29531900 Ext. 29790</p>
+    </div>
+
+    <!-- Title -->
+    <div class="title">PERKIRAAN BIAYA OPERASI</div>
+
+    <!-- Patient & Operation Info -->
+    <div class="section">
+        <div class="section-title">INFORMASI PASIEN & OPERASI</div>
+        <table class="info-table">
+            <tr>
+                <td>Nama Pasien</td>
+                <td>: {{ pbo.nama_pasien }}</td>
+                <td>Tanggal</td>
+                <td>: {{ pbo.tanggal }}</td>
+            </tr>
+            <tr>
+                <td>Diagnosa</td>
+                <td>: {{ pbo.diagnosa }}</td>
+                <td>Kelas</td>
+                <td>: {{ pbo.kelas }}</td>
+            </tr>
+            <tr>
+                <td>Nama Operasi</td>
+                <td>: {{ pbo.nama_operasi }}</td>
+                <td>Sifat Operasi</td>
+                <td>: {{ pbo.sifat_operasi }}</td>
+            </tr>
+            <tr>
+                <td>Nama Dokter</td>
+                <td>: {{ pbo.nama_dokter }}</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Operation Tables -->
+    <div class="section">
+        <div class="section-title">TABEL OPERASI</div>
+        <table class="bordered">
+            <thead>
+                <tr>
+                    <th width="10%">No</th>
+                    <th width="70%">Tindakan</th>
+                    <th width="20%">Persentase</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(1, 5) %}
+                {% if pbo['tabel_operasi' ~ i] %}
+                <tr>
+                    <td>{{ i }}</td>
+                    <td>{{ pbo['tabel_operasi' ~ i] }}</td>
+                    <td>{{ pbo['persentase_operasi' ~ i]|percentage }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Cost Details -->
+    <div class="section">
+        <div class="section-title">RINCIAN BIAYA</div>
+        <table class="bordered">
+            <thead>
+                <tr>
+                    <th width="70%">Item Biaya</th>
+                    <th width="30%" class="text-right">Jumlah (Rp)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pbo.konsultasi_pre_tindakan > 0 %}
+                <tr>
+                    <td>Konsultasi Pre Tindakan</td>
+                    <td class="text-right">{{ pbo.konsultasi_pre_tindakan|currency }}</td>
+                </tr>
+                {% endif %}
+                {% if pbo.diagnostic_pre_tindakan > 0 %}
+                <tr>
+                    <td>Diagnostic Pre Tindakan</td>
+                    <td class="text-right">{{ pbo.diagnostic_pre_tindakan|currency }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td><strong>Surgeon</strong></td>
+                    <td class="text-right"><strong>{{ pbo.surgeon|currency }}</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>Anesthesi</strong></td>
+                    <td class="text-right"><strong>{{ pbo.anesthesi|currency }}</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>OT Room Charge</strong></td>
+                    <td class="text-right"><strong>{{ pbo.ot_room_charge|currency }}</strong></td>
+                </tr>
+                {% if pbo.recovery_room_charge > 0 %}
+                <tr>
+                    <td>Recovery Room Charge</td>
+                    <td class="text-right">{{ pbo.recovery_room_charge|currency }}</td>
+                </tr>
+                {% endif %}
+                {% if pbo.alat > 0 %}
+                <tr>
+                    <td>Alat</td>
+                    <td class="text-right">{{ pbo.alat|currency }}</td>
+                </tr>
+                {% endif %}
+                {% if pbo.diagnostic > 0 %}
+                <tr>
+                    <td>Diagnostic</td>
+                    <td class="text-right">{{ pbo.diagnostic|currency }}</td>
+                </tr>
+                {% endif %}
+                {% if pbo.medical_equipment > 0 %}
+                <tr>
+                    <td>Medical Equipment</td>
+                    <td class="text-right">{{ pbo.medical_equipment|currency }}</td>
+                </tr>
+                {% endif %}
+                {% if pbo.obat_dan_alkes > 0 %}
+                <tr>
+                    <td>Obat dan Alkes</td>
+                    <td class="text-right">{{ pbo.obat_dan_alkes|currency }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td><strong>Tarif Kamar per Hari</strong></td>
+                    <td class="text-right"><strong>{{ pbo.tarif_kamar|currency }}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>TOTAL BIAYA</strong></td>
+                    <td class="text-right"><strong>{{ pbo.total|currency }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Additional Info -->
+    {% if pbo.catatan or pbo.keterangan %}
+    <div class="section">
+        <div class="section-title">CATATAN & KETERANGAN</div>
+        {% if pbo.catatan %}
+        <p><strong>Catatan:</strong> {{ pbo.catatan }}</p>
+        {% endif %}
+        {% if pbo.keterangan %}
+        <p><strong>Keterangan:</strong> {{ pbo.keterangan }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+        <div class="signature-box">
+            <p>Menyetujui dan memahami,</p>
+            <div class="signature-line">
+                <p>Nama: {{ pbo.nama_pasien }}</p>
+                <p>Hubungan: {{ pbo.hubungan_dengan_pasien or '_______________' }}</p>
+            </div>
+        </div>
+        <div class="signature-box" style="float: right;">
+            <p>Jakarta, {{ pbo.tanggal }}</p>
+            <div class="signature-line">
+                <p>Petugas Front Office SHTB</p>
+                <p>{{ pbo.petugas_front_office or '_______________' }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if pbo.perusahaan_asuransi %}
+    <div style="clear: both; margin-top: 20px;">
+        <p><strong>Perusahaan/Asuransi Penanggung:</strong> {{ pbo.perusahaan_asuransi }}</p>
+    </div>
+    {% endif %}
+
+    <script>
+        // Auto print when page loads (optional)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>

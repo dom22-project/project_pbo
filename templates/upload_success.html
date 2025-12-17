@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Berhasil{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Success Header -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <div class="display-1 text-success mb-3">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h1 class="display-4">Upload Berhasil!</h1>
+            <p class="lead text-muted">Database telah berhasil diperbarui</p>
+        </div>
+    </div>
+
+    <!-- Import Summary -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Ringkasan Import</h5>
+                </div>
+                <div class="card-body">
+                    <!-- File Information -->
+                    <div class="mb-4">
+                        <h6 class="text-muted">Informasi File:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Nama File:</strong> {{ filename }}</li>
+                            <li><strong>Waktu Upload:</strong> {{ upload_time }}</li>
+                        </ul>
+                    </div>
+
+                    <hr>
+
+                    <!-- Operations Import -->
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-table"></i> Data Operasi
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-success mb-0">{{ operations_imported }}</h3>
+                                        <small class="text-muted">Berhasil Diimport</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-warning mb-0">{{ operations_skipped }}</h3>
+                                        <small class="text-muted">Dilewati</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Doctors Import -->
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-person-badge"></i> Data Dokter
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-success mb-0">{{ doctors_imported }}</h3>
+                                        <small class="text-muted">Berhasil Diimport</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-info mb-0">{{ doctors_duplicates }}</h3>
+                                        <small class="text-muted">Duplikat</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-warning mb-0">{{ doctors_skipped }}</h3>
+                                        <small class="text-muted">Dilewati</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tindakan Items Import -->
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="bi bi-list-check"></i> Data Tindakan Items
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-success mb-0">{{ tindakan_imported }}</h3>
+                                        <small class="text-muted">Berhasil Diimport</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-warning mb-0">{{ tindakan_skipped }}</h3>
+                                        <small class="text-muted">Dilewati</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Total Statistics -->
+                    <div class="mb-3">
+                        <h6 class="text-primary">
+                            <i class="bi bi-bar-chart"></i> Statistik Database Saat Ini
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-primary mb-0">{{ total_operations }}</h2>
+                                        <small class="text-muted">Total Operasi</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-primary mb-0">{{ total_doctors }}</h2>
+                                        <small class="text-muted">Total Dokter</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-primary mb-0">{{ total_tindakan }}</h2>
+                                        <small class="text-muted">Total Tindakan Items</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if backup_path %}
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-shield-check"></i> 
+                        <strong>Backup:</strong> Database lama telah di-backup ke: <code>{{ backup_path }}</code>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-house"></i> Kembali ke Dashboard
+                </a>
+                <a href="{{ url_for('search_pbo') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-search"></i> Lihat Data PBO
+                </a>
+                <a href="{{ url_for('upload_database') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-cloud-upload"></i> Upload Database Lagi
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Information -->
+    <div class="row mt-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="alert alert-success">
+                <h6 class="alert-heading"><i class="bi bi-check-circle"></i> Proses Selesai</h6>
+                <p class="mb-0">
+                    Database telah berhasil diperbarui. Anda sekarang dapat menggunakan data terbaru 
+                    untuk membuat PBO baru atau melihat data yang sudah ada.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

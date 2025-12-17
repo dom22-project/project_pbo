@@ -13,7 +13,7 @@ def init_operation_tables():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS operation_tables (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kode TEXT,
+            kode TEXT UNIQUE,
             nama_tindakan TEXT,
             kelas TEXT,
             biaya_dokter REAL,

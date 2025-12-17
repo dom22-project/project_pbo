@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Database{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-cloud-upload"></i> Upload Database
+            </h1>
+            <p class="lead text-muted">Upload file Excel untuk memperbarui database operasi dan dokter</p>
+        </div>
+    </div>
+
+    <!-- Information Alert -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info" role="alert">
+                <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Informasi Penting</h5>
+                <hr>
+                <ul class="mb-0">
+                    <li>File harus dalam format <strong>Excel (.xlsx)</strong></li>
+                    <li>Ukuran maksimal file: <strong>16 MB</strong></li>
+                    <li>File harus memiliki 2 sheet:
+                        <ul>
+                            <li><strong>"db table operasi"</strong> - Data tabel operasi</li>
+                            <li><strong>"db nama dokter"</strong> - Data nama dokter</li>
+                        </ul>
+                    </li>
+                    <li><strong>Backup otomatis</strong> akan dibuat sebelum import</li>
+                    <li>Data lama akan <strong>diganti</strong> dengan data baru</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-arrow-up"></i> Upload File Database</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <!-- File Input -->
+                        <div class="mb-4">
+                            <label for="database_file" class="form-label">
+                                <strong>Pilih File Excel Database</strong>
+                            </label>
+                            <input type="file" 
+                                   class="form-control form-control-lg" 
+                                   id="database_file" 
+                                   name="database_file" 
+                                   accept=".xlsx"
+                                   required>
+                            <div class="form-text">
+                                Format: .xlsx | Maksimal: 16 MB
+                            </div>
+                        </div>
+
+                        <!-- File Info Display -->
+                        <div id="fileInfo" class="alert alert-secondary d-none mb-4">
+                            <h6><i class="bi bi-file-earmark-text"></i> Informasi File:</h6>
+                            <ul class="mb-0">
+                                <li>Nama: <strong id="fileName"></strong></li>
+                                <li>Ukuran: <strong id="fileSize"></strong></li>
+                                <li>Tipe: <strong id="fileType"></strong></li>
+                            </ul>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="confirmUpload" 
+                                       required>
+                                <label class="form-check-label" for="confirmUpload">
+                                    <strong>Saya memahami bahwa data lama akan diganti dengan data baru dari file ini</strong>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" 
+                                    class="btn btn-primary btn-lg" 
+                                    id="uploadBtn">
+                                <i class="bi bi-cloud-upload"></i> Upload & Import Database
+                            </button>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
+                            </a>
+                        </div>
+                    </form>
+
+                    <!-- Loading Indicator -->
+                    <div id="loadingIndicator" class="text-center mt-4 d-none">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted">
+                            <strong>Sedang memproses file...</strong><br>
+                            Mohon tunggu, jangan tutup halaman ini.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="row mt-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-question-circle"></i> Cara Menggunakan</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>Pastikan file Excel Anda memiliki format yang benar dengan 2 sheet yang diperlukan</li>
+                        <li>Klik tombol "Choose File" atau "Pilih File" untuk memilih file Excel</li>
+                        <li>Periksa informasi file yang muncul untuk memastikan file yang benar</li>
+                        <li>Centang kotak konfirmasi untuk melanjutkan</li>
+                        <li>Klik tombol "Upload & Import Database"</li>
+                        <li>Tunggu hingga proses selesai (jangan tutup halaman)</li>
+                        <li>Anda akan melihat hasil import setelah proses selesai</li>
+                    </ol>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <strong><i class="bi bi-exclamation-triangle"></i> Perhatian:</strong>
+                        Backup otomatis akan dibuat, namun pastikan Anda memiliki backup manual jika diperlukan.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// File input change handler
+document.getElementById('database_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const fileInfo = document.getElementById('fileInfo');
+    
+    if (file) {
+        // Display file information
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileType').textContent = file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        fileInfo.classList.remove('d-none');
+        
+        // Validate file size
+        const maxSize = 16 * 1024 * 1024; // 16MB
+        if (file.size > maxSize) {
+            alert('Ukuran file terlalu besar! Maksimal 16 MB.');
+            e.target.value = '';
+            fileInfo.classList.add('d-none');
+            return;
+        }
+        
+        // Validate file extension
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.xlsx')) {
+            alert('Format file tidak valid! Hanya file .xlsx yang diperbolehkan.');
+            e.target.value = '';
+            fileInfo.classList.add('d-none');
+            return;
+        }
+    } else {
+        fileInfo.classList.add('d-none');
+    }
+});
+
+// Form submit handler
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('database_file');
+    const confirmCheckbox = document.getElementById('confirmUpload');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        alert('Silakan pilih file terlebih dahulu!');
+        return;
+    }
+    
+    if (!confirmCheckbox.checked) {
+        e.preventDefault();
+        alert('Silakan centang kotak konfirmasi terlebih dahulu!');
+        return;
+    }
+    
+    // Show loading indicator
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadBtn').innerHTML = '<i class="bi bi-hourglass-split"></i> Memproses...';
+});
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+</script>
+{% endblock %}

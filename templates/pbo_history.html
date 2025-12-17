@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}History Versi - {{ current_pbo.nama_pasien }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6">
+                        <i class="bi bi-clock-history"></i> History Versi PBO
+                    </h1>
+                    <p class="text-muted">Pasien: {{ current_pbo.nama_pasien }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('detail_pbo', pbo_id=current_pbo.id) }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Kembali
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        <strong>Info:</strong> Sistem menyimpan maksimal 10 versi terakhir. Versi terlama akan otomatis terhapus.
+    </div>
+
+    <!-- Version History Table -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-list-ul"></i> Daftar Versi ({{ versions|length }} versi)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Versi</th>
+                            <th>Tanggal</th>
+                            <th>Diedit Oleh</th>
+                            <th>Total Biaya</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in versions %}
+                        <tr {% if version.is_latest %}class="table-success"{% endif %}>
+                            <td>
+                                <strong>Versi {{ version.version_number }}</strong>
+                            </td>
+                            <td>
+                                {% if version.edited_at %}
+                                {{ version.edited_at }}
+                                {% else %}
+                                {{ version.created_at }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if version.edited_by %}
+                                <i class="bi bi-person"></i> {{ version.edited_by }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ version.total|currency }}</td>
+                            <td>
+                                {% if version.is_latest %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Latest
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Old</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('detail_pbo', pbo_id=version.id) }}" 
+                                       class="btn btn-info" title="Lihat Detail">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    
+                                    {% if not version.is_latest %}
+                                    <form method="POST" action="{{ url_for('restore_version', version_id=version.id) }}" 
+                                          style="display:inline;" 
+                                          onsubmit="return confirm('Restore versi {{ version.version_number }}? Ini akan membuat versi baru.')">
+                                        <button type="submit" class="btn btn-warning" title="Restore Versi">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    {% if loop.index < versions|length %}
+                                    <a href="{{ url_for('compare_versions', 
+                                              version1_id=version.id, 
+                                              version2_id=versions[loop.index].id) }}" 
+                                       class="btn btn-secondary" title="Compare dengan versi sebelumnya">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Keterangan:</h6>
+                    <ul class="mb-0">
+                        <li><i class="bi bi-eye text-info"></i> <strong>View:</strong> Lihat detail versi</li>
+                        <li><i class="bi bi-arrow-counterclockwise text-warning"></i> <strong>Restore:</strong> Kembalikan ke versi ini (akan membuat versi baru)</li>
+                        <li><i class="bi bi-arrow-left-right text-secondary"></i> <strong>Compare:</strong> Bandingkan dengan versi sebelumnya</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

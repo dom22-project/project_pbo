@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Cari Data PBO{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-search"></i> Cari Data PBO
+            </h1>
+            <p class="text-muted">Pencarian dan Manajemen Data Perkiraan Biaya Operasi</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-funnel"></i> Filter Pencarian</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Cari berdasarkan</label>
+                        <select class="form-select" name="search_field">
+                            <option value="Nama Pasien">Nama Pasien</option>
+                            <option value="Nama Operasi">Nama Operasi</option>
+                            <option value="Tanggal">Tanggal</option>
+                            <option value="Diagnosa">Diagnosa</option>
+                            <option value="Nama Dokter">Nama Dokter</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Kata kunci</label>
+                        <input type="text" class="form-control" name="search_value" placeholder="Masukkan kata kunci pencarian...">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i> Cari
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results -->
+    {% if search_performed %}
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Hasil Pencarian</h5>
+            <span class="badge bg-primary">{{ results|length }} data ditemukan</span>
+        </div>
+        <div class="card-body">
+            {% if results %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nama Pasien</th>
+                            <th>Nama Operasi</th>
+                            <th>Diagnosa</th>
+                            <th>Dokter</th>
+                            <th>Kelas</th>
+                            <th>Tanggal</th>
+                            <th>Total Biaya</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pbo in results %}
+                        <tr>
+                            <td>{{ pbo.id }}</td>
+                            <td>{{ pbo.nama_pasien }}</td>
+                            <td>{{ pbo.nama_operasi }}</td>
+                            <td>{{ pbo.diagnosa }}</td>
+                            <td>{{ pbo.nama_dokter }}</td>
+                            <td><span class="badge bg-info">{{ pbo.kelas }}</span></td>
+                            <td>{{ pbo.tanggal }}</td>
+                            <td class="fw-bold">{{ pbo.total|currency }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('detail_pbo', pbo_id=pbo.id) }}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Lihat Detail">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('edit_pbo', pbo_id=pbo.id) }}" 
+                                       class="btn btn-outline-warning" 
+                                       title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{{ url_for('print_pbo', pbo_id=pbo.id) }}" 
+                                       class="btn btn-outline-info" 
+                                       target="_blank"
+                                       title="Cetak">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-outline-danger" 
+                                            onclick="confirmDelete({{ pbo.id }}, '{{ pbo.nama_pasien }}')"
+                                            title="Hapus">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle"></i> Tidak ditemukan data yang sesuai dengan kriteria pencarian.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-search" style="font-size: 4rem; color: #ccc;"></i>
+            <h5 class="mt-3">Gunakan form di atas untuk mencari data PBO</h5>
+            <p class="text-muted">Kosongkan kata kunci untuk menampilkan semua data</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Konfirmasi Hapus
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus data PBO untuk pasien:</p>
+                <p class="fw-bold" id="patientName"></p>
+                <p class="text-danger"><small>Data yang dihapus tidak dapat dikembalikan!</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <form method="POST" id="deleteForm" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Hapus Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(pboId, patientName) {
+    $('#patientName').text(patientName);
+    $('#deleteForm').attr('action', '/delete/' + pboId);
+    $('#deleteModal').modal('show');
+}
+</script>
+{% endblock %}

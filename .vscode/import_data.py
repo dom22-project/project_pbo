@@ -44,6 +44,10 @@ def add_operation(kode, nama_tindakan, kelas, biaya_dokter, biaya_rs):
 def import_from_csv(filename):
     """Import data from CSV file to database"""
     try:
+        if not os.path.exists(filename):
+            print(f"Warning: File {filename} not found. Skipping CSV import.")
+            return False
+            
         with open(filename, 'r', encoding='utf-8') as file:
             # Skip the first line [file name]
             next(file)
@@ -51,28 +55,37 @@ def import_from_csv(filename):
             next(file)
             
             reader = csv.reader(file)
+            imported_count = 0
             for row in reader:
                 if row:  # Skip empty lines
-                    # Remove parentheses and split by comma
-                    clean_row = row[0].strip().strip('()').split(',')
-                    
-                    # Extract values (first 5 elements)
-                    kode = clean_row[0].strip().strip("'")
-                    nama_tindakan = clean_row[1].strip().strip("'")
-                    kelas = clean_row[2].strip().strip("'")
-                    
-                    # Handle potential formatting issues with numbers
-                    biaya_dokter = float(clean_row[3].strip())
-                    biaya_rs = float(clean_row[4].strip())
-                    
-                    add_operation(kode, nama_tindakan, kelas, biaya_dokter, biaya_rs)
+                    try:
+                        # Remove parentheses and split by comma
+                        clean_row = row[0].strip().strip('()').split(',')
+                        
+                        # Extract values (first 5 elements)
+                        kode = clean_row[0].strip().strip("'")
+                        nama_tindakan = clean_row[1].strip().strip("'")
+                        kelas = clean_row[2].strip().strip("'")
+                        
+                        # Handle potential formatting issues with numbers
+                        biaya_dokter = float(clean_row[3].strip())
+                        biaya_rs = float(clean_row[4].strip())
+                        
+                        add_operation(kode, nama_tindakan, kelas, biaya_dokter, biaya_rs)
+                        imported_count += 1
+                    except Exception as row_error:
+                        print(f"Warning: Skipping row due to error: {str(row_error)}")
+                        continue
         
-        print(f"Data from {filename} successfully imported to database.")
+        print(f"Successfully imported {imported_count} operations from {filename}.")
+        return True
         
     except FileNotFoundError:
-        print(f"Error: File {filename} not found.")
+        print(f"Warning: File {filename} not found. Skipping CSV import.")
+        return False
     except Exception as e:
         print(f"Error importing data: {str(e)}")
+        return False
 
 def get_all_operations():
     """Get all operations from the database"""

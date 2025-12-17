@@ -76,14 +76,17 @@
                         <label class="form-label">Kelas <span class="text-danger">*</span></label>
                         <select class="form-select" name="kelas" id="kelas" required>
                             <option value="">-- Pilih Kelas --</option>
-                            <option value="BASIC">BASIC</option>
-                            <option value="STANDARD">STANDARD</option>
-                            <option value="DELUXE">DELUXE</option>
+                            <option value="Basic">Basic</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Deluxe">Deluxe</option>
                             <option value="VIP">VIP</option>
                             <option value="VVIP">VVIP</option>
-                            <option value="SUITE">SUITE</option>
-                            <option value="PRESIDENTIAL SUITE">PRESIDENTIAL SUITE</option>
+                            <option value="Suite">Suite</option>
+                            <option value="President Suite">President Suite</option>
                             <option value="ODC">ODC</option>
+                            <option value="ED">ED</option>
+                            <option value="OPD">OPD</option>
+                            <option value="OPD Executive">OPD Executive</option>
                         </select>
                     </div>
                 </div>
@@ -288,9 +291,15 @@ $(document).ready(function() {
             }
         }
     });
+
+    // ===== DYNAMIC OPERATION TABLE FUNCTIONALITY =====
+    let operationCounter = 0;
+    let isFirstRowAdded = false;
+
     // Auto-calculate room rate when class changes and filter tindakan items
     $('#kelas').change(function() {
         const kelas = $(this).val();
+        console.log('Kelas berubah ke:', kelas);
         
         // Update room rate
         $.ajax({
@@ -308,6 +317,7 @@ $(document).ready(function() {
         
         // Filter tindakan items based on selected class
         if (kelas) {
+            console.log('Fetching operasi untuk kelas:', kelas);
             $.ajax({
                 url: '/api/get-tindakan-by-kelas',
                 method: 'POST',
@@ -315,6 +325,7 @@ $(document).ready(function() {
                 data: JSON.stringify({ kelas: kelas }),
                 success: function(response) {
                     if (response.success) {
+                        console.log('Response success, operasi count:', response.operations.length);
                         // Update global data
                         tindakanItemsData = response.tindakan_items;
                         operationsData = response.operations;
@@ -324,48 +335,68 @@ $(document).ready(function() {
                         
                         // Show notification
                         const totalItems = response.operations.length + response.tindakan_items.length;
-                        if (totalItems === 0) {
-                            console.log('Tidak ada tindakan untuk kelas ' + kelas);
-                        } else {
-                            console.log('Ditemukan ' + response.operations.length + ' tabel operasi dan ' + response.tindakan_items.length + ' tindakan untuk kelas ' + kelas);
-                        }
+                        console.log('Memfilter tindakan untuk kelas: ' + kelas);
+                        console.log('Ditemukan ' + response.operations.length + ' tabel operasi dan ' + response.tindakan_items.length + ' tindakan');
+                    } else {
+                        console.log('Response failed');
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error fetching tindakan items:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
                 }
             });
         } else {
             // If no class selected, show all items
+            console.log('Tidak ada kelas dipilih, gunakan semua operasi');
             tindakanItemsData = {{ tindakan_items|tojson|safe }};
             operationsData = {{ operations|tojson|safe }};
             updateAllOperationDropdowns();
         }
     });
+
+    // Check if kelas is already selected on page load
+    const initialKelas = $('#kelas').val();
+    console.log('Initial kelas on page load:', initialKelas);
+    
+    // Add first row on page load
+    addOperationRow();
+    isFirstRowAdded = true;
+    
+    // If kelas is already selected, trigger change to filter
+    if (initialKelas) {
+        console.log('Triggering change for initial kelas');
+        $('#kelas').trigger('change');
+    }
     
     // Function to update all operation dropdowns with filtered tindakan
     function updateAllOperationDropdowns() {
         $('.operation-row').each(function() {
             const rowId = $(this).data('row-id');
             const selectElement = $(`#tabel_operasi${rowId}`);
+            if (selectElement.length === 0) return; // Skip if element not found
+            
             const currentValue = selectElement.val();
             
             // Rebuild options
             let optionsHtml = '<option value="">-- Pilih Tindakan --</option>';
             
             // Add operation tables (always shown)
-            optionsHtml += '<optgroup label="📋 Tabel Operasi Standard">';
-            operationsData.forEach(op => {
-                optionsHtml += `
-                    <option value="${op.kode} - ${op.nama_tindakan}">
-                        ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
-                    </option>
-                `;
-            });
-            optionsHtml += '</optgroup>';
+            if (operationsData && operationsData.length > 0) {
+                optionsHtml += '<optgroup label="📋 Tabel Operasi Standard">';
+                operationsData.forEach(op => {
+                    optionsHtml += `
+                        <option value="${op.kode} - ${op.nama_tindakan}">
+                            ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                        </option>
+                    `;
+                });
+                optionsHtml += '</optgroup>';
+            }
             
             // Add filtered tindakan items
-            if (tindakanItemsData.length > 0) {
+            if (tindakanItemsData && tindakanItemsData.length > 0) {
                 optionsHtml += '<optgroup label="🏥 Data Tindakan Terbaru">';
                 tindakanItemsData.forEach(item => {
                     optionsHtml += `
@@ -378,6 +409,11 @@ $(document).ready(function() {
                     `;
                 });
                 optionsHtml += '</optgroup>';
+            }
+            
+            // Destroy Select2 if it exists
+            if (selectElement.data('select2')) {
+                selectElement.select2('destroy');
             }
             
             // Update select element
@@ -394,13 +430,37 @@ $(document).ready(function() {
                 }
             }
             
-            // Trigger Select2 update
-            selectElement.trigger('change.select2');
+            // Reinitialize Select2 for the updated row
+            selectElement.select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "Tindakan tidak ditemukan";
+                    },
+                    searching: function() {
+                        return "Mencari...";
+                    },
+                    inputTooShort: function() {
+                        return "Ketik untuk mencari tindakan...";
+                    }
+                }
+            });
+            
+            // Trigger change event for calculation
+            selectElement.trigger('change');
         });
     }
 
-    // Calculate surgery fees
-    $('#calculateSurgeryBtn, .operation-select, .percentage-select, #sifat_operasi').change(function() {
+    // Calculate surgery fees - use event delegation for dynamically added elements
+    $('#calculateSurgeryBtn').click(function() {
+        calculateSurgeryFees();
+    });
+    
+    // Use event delegation for dynamically added operation and percentage selects
+    $(document).on('change', '.operation-select, .percentage-select, #sifat_operasi', function() {
         calculateSurgeryFees();
     });
 
@@ -469,12 +529,6 @@ $(document).ready(function() {
             }
         });
     }
-
-    // ===== DYNAMIC OPERATION TABLE FUNCTIONALITY =====
-    let operationCounter = 0;
-
-    // Add first row on page load
-    addOperationRow();
 
     // Add operation row button
     $('#addOperationBtn').click(function() {
@@ -553,11 +607,6 @@ $(document).ready(function() {
                     return "Ketik untuk mencari tindakan...";
                 }
             }
-        });
-
-        // Bind change event for calculation
-        $(`#tabel_operasi${operationCounter}, #persentase_operasi${operationCounter}`).change(function() {
-            calculateSurgeryFees();
         });
 
         // Update row numbers

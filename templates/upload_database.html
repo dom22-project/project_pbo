@@ -20,7 +20,7 @@
             <div class="alert alert-info" role="alert">
                 <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Informasi Penting</h5>
                 <hr>
-                <ul class="mb-0">
+                <ul class="mb-3">
                     <li>File harus dalam format <strong>Excel (.xlsx)</strong></li>
                     <li>Ukuran maksimal file: <strong>16 MB</strong></li>
                     <li>File harus memiliki 2 sheet:
@@ -32,6 +32,12 @@
                     <li><strong>Backup otomatis</strong> akan dibuat sebelum import</li>
                     <li>Data lama akan <strong>diganti</strong> dengan data baru</li>
                 </ul>
+                <div class="alert alert-warning mb-0" role="alert">
+                    <strong><i class="bi bi-download"></i> Belum punya template?</strong><br>
+                    <a href="{{ url_for('download_template') }}" class="btn btn-sm btn-primary mt-2">
+                        <i class="bi bi-file-earmark-arrow-down"></i> Download Template Excel
+                    </a>
+                </div>
             </div>
         </div>
     </div>

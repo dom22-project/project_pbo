@@ -86,7 +86,7 @@
                         <label class="form-label">Kelas <span class="text-danger">*</span></label>
                         <select class="form-select" name="kelas" id="kelas" required>
                             <option value="">-- Pilih Kelas --</option>
-                            {% for kelas_option in ['BASIC', 'STANDARD', 'DELUXE', 'VIP', 'VVIP', 'SUITE', 'PRESIDENTIAL SUITE', 'ODC'] %}
+                            {% for kelas_option in ['Basic', 'Standard', 'Deluxe', 'VIP', 'VVIP', 'Suite', 'President Suite', 'ODC', 'ED', 'OPD', 'OPD Executive'] %}
                             <option value="{{ kelas_option }}" {% if pbo.kelas == kelas_option %}selected{% endif %}>{{ kelas_option }}</option>
                             {% endfor %}
                         </select>
@@ -288,10 +288,12 @@ $(document).ready(function() {
         }
     });
     
-    // Same JavaScript as input_pbo.html
+    // Auto-calculate room rate when class changes and filter operasi items
     $('#kelas').change(function() {
         const kelas = $(this).val();
+        console.log('Kelas berubah ke:', kelas);
         
+        // Update room rate
         $.ajax({
             url: '/api/get-room-rate',
             method: 'POST',
@@ -304,7 +306,107 @@ $(document).ready(function() {
                 }
             }
         });
+        
+        // Filter operasi based on selected class
+        if (kelas) {
+            console.log('Fetching operasi untuk kelas:', kelas);
+            $.ajax({
+                url: '/api/get-tindakan-by-kelas',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ kelas: kelas }),
+                success: function(response) {
+                    if (response.success) {
+                        console.log('Response success, operasi count:', response.operations.length);
+                        // Update all operation dropdowns with filtered operations
+                        updateOperationDropdowns(response.operations);
+                        console.log('Filtered operations for kelas:', kelas, '- Found:', response.operations.length);
+                    } else {
+                        console.log('Response failed');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching filtered operations:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
+                }
+            });
+        }
     });
+    
+    // Function to update all operation dropdowns
+    function updateOperationDropdowns(filteredOperations) {
+        for (let i = 1; i <= 4; i++) {
+            const selectElement = $(`#tabel_operasi${i}`);
+            if (selectElement.length === 0) continue;
+            
+            const currentValue = selectElement.val();
+            
+            // Rebuild options
+            let optionsHtml = '<option value="">-- Pilih Tindakan --</option>';
+            
+            // Add filtered operations
+            if (filteredOperations && filteredOperations.length > 0) {
+                filteredOperations.forEach(op => {
+                    optionsHtml += `
+                        <option value="${op.kode} - ${op.nama_tindakan}">
+                            ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                        </option>
+                    `;
+                });
+            }
+            
+            // Destroy Select2 if it exists
+            if (selectElement.data('select2')) {
+                selectElement.select2('destroy');
+            }
+            
+            // Update select element
+            selectElement.html(optionsHtml);
+            
+            // Try to restore previous value if it still exists
+            if (currentValue) {
+                const optionExists = selectElement.find(`option[value="${currentValue}"]`).length > 0;
+                if (optionExists) {
+                    selectElement.val(currentValue);
+                }
+            }
+            
+            // Reinitialize Select2 for the updated row
+            selectElement.select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "Tindakan tidak ditemukan";
+                    },
+                    searching: function() {
+                        return "Mencari...";
+                    },
+                    inputTooShort: function() {
+                        return "Ketik untuk mencari tindakan...";
+                    }
+                }
+            });
+            
+            // Trigger change event
+            selectElement.trigger('change');
+        }
+    }
+    
+    // Helper function to format numbers
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('id-ID');
+    }
+    
+    // Check if kelas is already selected on page load and filter accordingly
+    const initialKelas = $('#kelas').val();
+    if (initialKelas) {
+        console.log('Initial kelas selected on edit page:', initialKelas);
+        $('#kelas').trigger('change');
+    }
 
     $('#calculateSurgeryBtn, .operation-select, .percentage-select, #sifat_operasi').change(function() {
         calculateSurgeryFees();

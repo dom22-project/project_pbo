@@ -5,8 +5,18 @@ class PBOCalculator:
     
     @staticmethod
     def get_room_rate(kelas):
-        """Get room rate based on class"""
-        return Config.ROOM_RATES.get(kelas, 0)
+        """Get room rate based on class (case-insensitive)"""
+        # Try exact match first
+        if kelas in Config.ROOM_RATES:
+            return Config.ROOM_RATES[kelas]
+        
+        # Try case-insensitive match
+        kelas_upper = kelas.upper()
+        for key, value in Config.ROOM_RATES.items():
+            if key.upper() == kelas_upper:
+                return value
+        
+        return 0
     
     @staticmethod
     def get_surcharge_rate(sifat_operasi):

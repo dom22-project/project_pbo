@@ -5,15 +5,173 @@ import shutil
 from functools import wraps
 from werkzeug.utils import secure_filename
 import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from io import BytesIO
 from config import Config
+from models_sqlalchemy import db, User
 from models import Database
 from utils import PBOCalculator, FormValidator, ReportGenerator
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Initialize database
-db = Database()
+# Initialize SQLAlchemy
+db.init_app(app)
+
+# Initialize database helper
+db_helper = Database()
+
+# Create tables within app context dan setup default data
+with app.app_context():
+    # Create all tables
+    db.create_all()
+    
+    # Add default users if none exist
+    if User.query.count() == 0:
+        default_users = [
+            User(username='admin', password='admin123', role='admin'),
+            User(username='user', password='user123', role='user'),
+        ]
+        db.session.add_all(default_users)
+        db.session.commit()
+    
+    # Add default operations if none exist
+    from models_sqlalchemy import OperationTable
+    if OperationTable.query.count() == 0:
+        default_operations = [
+            OperationTable(kode='4199999994', nama_tindakan='DOCTORS PROCEDURE TABLE 3', kelas='ODC', biaya_dokter=4934000, biaya_rs=0, total_biaya=4934000),
+            OperationTable(kode='4199999995', nama_tindakan='DOCTORS PROCEDURE TABLE 1', kelas='ODC', biaya_dokter=1125000, biaya_rs=0, total_biaya=1125000),
+            OperationTable(kode='4199999996', nama_tindakan='DOCTORS PROCEDURE TABLE 2', kelas='ODC', biaya_dokter=2368000, biaya_rs=0, total_biaya=2368000),
+        ]
+        db.session.add_all(default_operations)
+        db.session.commit()
+
+# Helper function to import Excel to database
+def import_excel_to_database(file_path, db_helper):
+    """Import data from Excel file to database"""
+    try:
+        wb = openpyxl.load_workbook(file_path)
+        stats = {
+            'operations_imported': 0,
+            'operations_skipped': 0,
+            'doctors_imported': 0,
+            'doctors_duplicates': 0,
+            'doctors_skipped': 0,
+            'tindakan_imported': 0,
+            'tindakan_skipped': 0
+        }
+        
+        # Import Operasi (Tabel Operasi)
+        if 'db table operasi' in wb.sheetnames:
+            ws = wb['db table operasi']
+            for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                if row_idx == 1:  # Skip header
+                    continue
+                if not row[0]:  # Skip empty rows
+                    continue
+                
+                try:
+                    no = row[0]
+                    fee_operator = row[1]
+                    kelas = row[2]
+                    harga_operator = row[3]
+                    harga_anestesi = row[4]
+                    
+                    if not all([fee_operator, kelas, harga_operator, harga_anestesi]):
+                        stats['operations_skipped'] += 1
+                        continue
+                    
+                    # Generate kode
+                    kode = f"{int(no):04d}"
+                    
+                    # Check if exists
+                    existing = db_helper.get_operation_by_code(kode)
+                    if existing:
+                        stats['operations_skipped'] += 1
+                        continue
+                    
+                    db_helper.add_operation(
+                        kode=kode,
+                        nama_tindakan=str(fee_operator),
+                        kelas=str(kelas),
+                        biaya_dokter=float(harga_operator or 0),
+                        biaya_rs=float(harga_anestesi or 0)
+                    )
+                    stats['operations_imported'] += 1
+                except Exception as e:
+                    stats['operations_skipped'] += 1
+                    continue
+        
+        # Import Dokter
+        if 'db nama dokter' in wb.sheetnames:
+            ws = wb['db nama dokter']
+            for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                if row_idx == 1:  # Skip header
+                    continue
+                if not row[0]:  # Skip empty rows
+                    continue
+                
+                try:
+                    no = row[0]
+                    nama_dokter = row[1]
+                    
+                    if not nama_dokter:
+                        stats['doctors_skipped'] += 1
+                        continue
+                    
+                    # Check if exists
+                    existing = db_helper.get_user_by_username(str(nama_dokter))
+                    if existing:
+                        stats['doctors_duplicates'] += 1
+                        continue
+                    
+                    result = db_helper.add_doctor(str(nama_dokter))
+                    if result:
+                        stats['doctors_imported'] += 1
+                    else:
+                        stats['doctors_duplicates'] += 1
+                except Exception as e:
+                    stats['doctors_skipped'] += 1
+                    continue
+        
+        # Import Tindakan (opsional)
+        if 'db nama tindakan' in wb.sheetnames:
+            ws = wb['db nama tindakan']
+            for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                if row_idx == 1:  # Skip header
+                    continue
+                if not row[0]:  # Skip empty rows
+                    continue
+                
+                try:
+                    no = row[0]
+                    nama_tindakan = row[1]
+                    kelas = row[2]
+                    kategory = row[3]
+                    sales_item_type = row[4]
+                    amount = row[5]
+                    
+                    if not all([nama_tindakan, kelas]):
+                        stats['tindakan_skipped'] += 1
+                        continue
+                    
+                    db_helper.add_tindakan_item(
+                        nama_tindakan=str(nama_tindakan),
+                        kelas=str(kelas),
+                        kategory=str(kategory or ''),
+                        sales_item_type=str(sales_item_type or ''),
+                        amount=float(amount or 0)
+                    )
+                    stats['tindakan_imported'] += 1
+                except Exception as e:
+                    stats['tindakan_skipped'] += 1
+                    continue
+        
+        wb.close()
+        return stats
+        
+    except Exception as e:
+        raise Exception(f"Error importing Excel: {str(e)}")
 
 # Authentication decorator
 def login_required(f):
@@ -47,7 +205,7 @@ def login():
         username = request.form.get('username', '')
         password = request.form.get('password', '')
         
-        user = db.authenticate_user(username, password)
+        user = db_helper.authenticate_user(username, password)
         
         if user:
             session['user_id'] = user['id']
@@ -77,8 +235,8 @@ def logout():
 @login_required
 def index():
     """Home page / Dashboard"""
-    total_pbo = db.count_latest_pbo()
-    recent_pbo = db.get_all_latest_pbo(limit=5)
+    total_pbo = db_helper.count_latest_pbo()
+    recent_pbo = db_helper.get_all_latest_pbo(limit=5)
     return render_template('index.html', 
                          total_pbo=total_pbo,
                          recent_pbo=recent_pbo)
@@ -185,7 +343,7 @@ def input_pbo():
             )
             
             # Save to database
-            pbo_id = db.create_pbo(data)
+            pbo_id = db_helper.create_pbo(data)
             
             flash(f'Data PBO berhasil disimpan dengan ID: {pbo_id}', 'success')
             return redirect(url_for('detail_pbo', pbo_id=pbo_id))
@@ -195,10 +353,10 @@ def input_pbo():
             return redirect(url_for('input_pbo'))
     
     # GET request - show form
-    operations = db.get_all_operations()
-    doctors = db.get_all_doctors()
+    operations = db_helper.get_all_operations()
+    doctors = db_helper.get_all_doctors()
     print(operations)
-    tindakan_items = db.get_all_tindakan_items()
+    tindakan_items = db_helper.get_all_tindakan_items()
     
     return render_template('input_pbo.html', 
                          operations=operations,
@@ -218,10 +376,10 @@ def search_pbo():
         search_value = request.form.get('search_value', '')
         
         if search_value:
-            results = db.search_latest_pbo(search_field, search_value)
+            results = db_helper.search_latest_pbo(search_field, search_value)
             search_performed = True
         else:
-            results = db.get_all_latest_pbo(limit=100)
+            results = db_helper.get_all_latest_pbo(limit=100)
             search_performed = True
     
     return render_template('search_pbo.html', 
@@ -232,7 +390,7 @@ def search_pbo():
 @login_required
 def detail_pbo(pbo_id):
     """View PBO detail"""
-    pbo_data = db.get_pbo_by_id(pbo_id)
+    pbo_data = db_helper.get_pbo_by_id(pbo_id)
     
     if not pbo_data:
         flash('Data PBO tidak ditemukan', 'danger')
@@ -314,7 +472,7 @@ def edit_pbo(pbo_id):
             )
             
             # Create new version instead of updating
-            new_version_id = db.create_pbo_version(
+            new_version_id = db_helper.create_pbo_version(
                 parent_id=pbo_id,
                 data=data,
                 username=session.get('username', 'unknown')
@@ -332,14 +490,14 @@ def edit_pbo(pbo_id):
             return redirect(url_for('edit_pbo', pbo_id=pbo_id))
     
     # GET request - show form with existing data
-    pbo_data = db.get_pbo_by_id(pbo_id)
+    pbo_data = db_helper.get_pbo_by_id(pbo_id)
     
     if not pbo_data:
         flash('Data PBO tidak ditemukan', 'danger')
         return redirect(url_for('search_pbo'))
     
-    operations = db.get_all_operations()
-    doctors = db.get_all_doctors()
+    operations = db_helper.get_all_operations()
+    doctors = db_helper.get_all_doctors()
     return render_template('edit_pbo.html', 
                          pbo=pbo_data,
                          operations=operations,
@@ -350,7 +508,7 @@ def edit_pbo(pbo_id):
 def delete_pbo(pbo_id):
     """Delete PBO record - Admin only"""
     try:
-        db.delete_pbo(pbo_id)
+        db_helper.delete_pbo(pbo_id)
         flash('Data PBO berhasil dihapus', 'success')
     except Exception as e:
         flash(f'Terjadi kesalahan: {str(e)}', 'danger')
@@ -361,7 +519,7 @@ def delete_pbo(pbo_id):
 @login_required
 def print_pbo(pbo_id):
     """Print PBO form"""
-    pbo_data = db.get_pbo_by_id(pbo_id)
+    pbo_data = db_helper.get_pbo_by_id(pbo_id)
     
     if not pbo_data:
         flash('Data PBO tidak ditemukan', 'danger')
@@ -379,14 +537,14 @@ def print_pbo(pbo_id):
 def pbo_history(pbo_id):
     """View version history of PBO"""
     # Get all versions
-    versions = db.get_pbo_versions(pbo_id)
+    versions = db_helper.get_pbo_versions(pbo_id)
     
     if not versions:
         flash('Data PBO tidak ditemukan', 'danger')
         return redirect(url_for('search_pbo'))
     
     # Get current PBO data for context
-    current_pbo = db.get_pbo_by_id(pbo_id)
+    current_pbo = db_helper.get_pbo_by_id(pbo_id)
     
     return render_template('pbo_history.html', 
                          versions=versions,
@@ -396,7 +554,7 @@ def pbo_history(pbo_id):
 @login_required
 def compare_versions(version1_id, version2_id):
     """Compare two versions of PBO"""
-    comparison = db.compare_pbo_versions(version1_id, version2_id)
+    comparison = db_helper.compare_pbo_versions(version1_id, version2_id)
     
     if not comparison:
         flash('Versi tidak ditemukan', 'danger')
@@ -410,7 +568,7 @@ def compare_versions(version1_id, version2_id):
 def restore_version(version_id):
     """Restore a previous version"""
     try:
-        restored_id = db.restore_pbo_version(
+        restored_id = db_helper.restore_pbo_version(
             version_id=version_id,
             username=session.get('username', 'unknown')
         )
@@ -444,7 +602,7 @@ def api_calculate_surgery_fees():
         
         sifat_operasi = data.get('sifat_operasi', 'Elektif / Tentative')
         
-        result = PBOCalculator.calculate_surgery_fees(operations_data, sifat_operasi, db)
+        result = PBOCalculator.calculate_surgery_fees(operations_data, sifat_operasi, db_helper)
         
         return jsonify({
             'success': True,
@@ -504,12 +662,12 @@ def api_get_tindakan_by_kelas():
 
         if not kelas:
             # If no kelas specified, return all items
-            tindakan_items = db.get_all_tindakan_items()
-            operations = db.get_all_operations()
+            tindakan_items = db_helper.get_all_tindakan_items()
+            operations = db_helper.get_all_operations()
         else:
             # Filter by kelas
-            tindakan_items = db.get_tindakan_by_kelas(kelas)
-            operations = db.get_operations_by_kelas(kelas)
+            tindakan_items = db_helper.get_tindakan_by_kelas(kelas)
+            operations = db_helper.get_operations_by_kelas(kelas)
         
         return jsonify({
             'success': True,
@@ -528,8 +686,8 @@ def api_get_tindakan_by_kelas():
 @login_required
 def view_tindakan():
     """View all tindakan items"""
-    tindakan_items = db.get_all_tindakan_items()
-    total_items = db.count_tindakan_items()
+    tindakan_items = db_helper.get_all_tindakan_items()
+    total_items = db_helper.count_tindakan_items()
     
     return render_template('view_tindakan.html',
                          tindakan_items=tindakan_items,
@@ -552,7 +710,7 @@ def add_tindakan():
                 flash('Nama Tindakan, Kelas, dan Kategory harus diisi!', 'danger')
                 return redirect(url_for('add_tindakan'))
             
-            db.add_tindakan_item(nama_tindakan, kelas, kategory, sales_item_type, amount)
+            db_helper.add_tindakan_item(nama_tindakan, kelas, kategory, sales_item_type, amount)
             flash('Tindakan berhasil ditambahkan!', 'success')
             return redirect(url_for('view_tindakan'))
             
@@ -578,7 +736,7 @@ def edit_tindakan(tindakan_id):
                 flash('Nama Tindakan, Kelas, dan Kategory harus diisi!', 'danger')
                 return redirect(url_for('edit_tindakan', tindakan_id=tindakan_id))
             
-            db.update_tindakan_item(tindakan_id, nama_tindakan, kelas, kategory, sales_item_type, amount)
+            db_helper.update_tindakan_item(tindakan_id, nama_tindakan, kelas, kategory, sales_item_type, amount)
             flash('Tindakan berhasil diupdate!', 'success')
             return redirect(url_for('view_tindakan'))
             
@@ -586,7 +744,7 @@ def edit_tindakan(tindakan_id):
             flash(f'Terjadi kesalahan: {str(e)}', 'danger')
             return redirect(url_for('edit_tindakan', tindakan_id=tindakan_id))
     
-    tindakan = db.get_tindakan_by_id(tindakan_id)
+    tindakan = db_helper.get_tindakan_by_id(tindakan_id)
     if not tindakan:
         flash('Tindakan tidak ditemukan!', 'danger')
         return redirect(url_for('view_tindakan'))
@@ -598,7 +756,7 @@ def edit_tindakan(tindakan_id):
 def delete_tindakan(tindakan_id):
     """Delete tindakan item"""
     try:
-        db.delete_tindakan_item(tindakan_id)
+        db_helper.delete_tindakan_item(tindakan_id)
         flash('Tindakan berhasil dihapus!', 'success')
     except Exception as e:
         flash(f'Terjadi kesalahan: {str(e)}', 'danger')
@@ -667,7 +825,7 @@ def upload_database():
                 shutil.copy2(app.config['DATABASE_PATH'], backup_path)
             
             # Import data from Excel
-            import_stats = import_excel_to_database(upload_path, db)
+            import_stats = import_excel_to_database(upload_path, db_helper)
             
             # Clean up uploaded file
             os.remove(upload_path)
@@ -685,9 +843,9 @@ def upload_database():
                                  doctors_skipped=import_stats['doctors_skipped'],
                                  tindakan_imported=import_stats['tindakan_imported'],
                                  tindakan_skipped=import_stats['tindakan_skipped'],
-                                 total_operations=len(db.get_all_operations()),
-                                 total_doctors=db.count_doctors(),
-                                 total_tindakan=db.count_tindakan_items(),
+                                 total_operations=len(db_helper.get_all_operations()),
+                                 total_doctors=db_helper.count_doctors(),
+                                 total_tindakan=db_helper.count_tindakan_items(),
                                  backup_path=backup_path)
             
         except Exception as e:
@@ -697,161 +855,136 @@ def upload_database():
     # GET request - show upload form
     return render_template('upload_database.html')
 
-def import_excel_to_database(excel_path, db):
-    """Import data from Excel file to database"""
-    stats = {
-        'operations_imported': 0,
-        'operations_skipped': 0,
-        'doctors_imported': 0,
-        'doctors_duplicates': 0,
-        'doctors_skipped': 0,
-        'tindakan_imported': 0,
-        'tindakan_skipped': 0
-    }
-    
+@app.route('/download-template', methods=['GET'])
+@login_required
+def download_template():
+    """Download Excel template for database import"""
     try:
-        wb = openpyxl.load_workbook(excel_path)
+        # Create workbook
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)  # Remove default sheet
         
-        # Import operations
-        if 'db table operasi' in wb.sheetnames:
-            ws = wb['db table operasi']
-            
-            # Clear existing operations
-            db.delete_all_operations()
-            
-            # Import new operations
-            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                try:
-                    if not any(row):
-                        continue
-                    
-                    fee_operator = row[1] if len(row) > 1 else None
-                    kelas = row[2] if len(row) > 2 else None
-                    harga_operator = row[3] if len(row) > 3 else None
-                    harga_anestesi = row[4] if len(row) > 4 else None
-                    
-                    if not fee_operator or not kelas:
-                        stats['operations_skipped'] += 1
-                        continue
-                    
-                    fee_operator = str(fee_operator).strip()
-                    kelas = str(kelas).strip()
-                    
-                    try:
-                        harga_operator = float(harga_operator) if harga_operator else 0
-                    except (ValueError, TypeError):
-                        harga_operator = 0
-                    
-                    try:
-                        harga_anestesi = float(harga_anestesi) if harga_anestesi else 0
-                    except (ValueError, TypeError):
-                        harga_anestesi = 0
-                    
-                    kode = f"OP{row_num:06d}"
-                    
-                    db.add_operation(
-                        kode=kode,
-                        nama_tindakan=fee_operator,
-                        kelas=kelas,
-                        biaya_dokter=harga_operator,
-                        biaya_rs=harga_anestesi
-                    )
-                    
-                    stats['operations_imported'] += 1
-                    
-                except Exception:
-                    stats['operations_skipped'] += 1
-                    continue
+        # Define styles
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF', size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        center_alignment = Alignment(horizontal='center', vertical='center')
         
-        # Import doctors
-        if 'db nama dokter' in wb.sheetnames:
-            ws = wb['db nama dokter']
-            
-            # Clear existing doctors
-            db.delete_all_doctors()
-            
-            # Import new doctors
-            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                try:
-                    if not any(row):
-                        continue
-                    
-                    nama_dokter = row[1] if len(row) > 1 else None
-                    
-                    if not nama_dokter:
-                        stats['doctors_skipped'] += 1
-                        continue
-                    
-                    nama_dokter = str(nama_dokter).strip()
-                    
-                    if not nama_dokter:
-                        stats['doctors_skipped'] += 1
-                        continue
-                    
-                    result = db.add_doctor(nama_dokter)
-                    
-                    if result:
-                        stats['doctors_imported'] += 1
-                    else:
-                        stats['doctors_duplicates'] += 1
-                    
-                except Exception:
-                    stats['doctors_skipped'] += 1
-                    continue
+        # Sheet 1: db table operasi
+        ws1 = wb.create_sheet('db table operasi')
+        headers1 = ['No', 'Fee Operator', 'Kelas', 'Harga Operator', 'Harga Anestesi']
         
-        # Import tindakan items
-        if 'db nama tindakan' in wb.sheetnames:
-            ws = wb['db nama tindakan']
-            
-            # Clear existing tindakan items
-            db.delete_all_tindakan_items()
-            
-            # Import new tindakan items
-            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                try:
-                    if not any(row):
-                        continue
-                    
-                    nama_tindakan = row[1] if len(row) > 1 else None
-                    kelas = row[2] if len(row) > 2 else None
-                    kategory = row[3] if len(row) > 3 else None
-                    sales_item_type = row[4] if len(row) > 4 else None
-                    amount = row[5] if len(row) > 5 else None
-                    
-                    if not nama_tindakan:
-                        stats['tindakan_skipped'] += 1
-                        continue
-                    
-                    nama_tindakan = str(nama_tindakan).strip()
-                    kelas = str(kelas).strip() if kelas else ''
-                    kategory = str(kategory).strip() if kategory else ''
-                    sales_item_type = str(sales_item_type).strip() if sales_item_type else ''
-                    
-                    try:
-                        amount = float(amount) if amount else 0
-                    except (ValueError, TypeError):
-                        amount = 0
-                    
-                    db.add_tindakan_item(
-                        nama_tindakan=nama_tindakan,
-                        kelas=kelas,
-                        kategory=kategory,
-                        sales_item_type=sales_item_type,
-                        amount=amount
-                    )
-                    
-                    stats['tindakan_imported'] += 1
-                    
-                except Exception:
-                    stats['tindakan_skipped'] += 1
-                    continue
+        for col, header in enumerate(headers1, 1):
+            cell = ws1.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = center_alignment
         
-        wb.close()
+        # Add sample data
+        sample_data1 = [
+            [1, 'OPERASI MAYOR', 'BASIC', 2000000, 500000],
+            [2, 'OPERASI MINOR', 'STANDARD', 1000000, 250000],
+            [3, 'KONSULTASI', 'VIP', 500000, 100000],
+        ]
+        
+        for row_idx, row_data in enumerate(sample_data1, 2):
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws1.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = border
+                if col_idx > 1:
+                    cell.alignment = center_alignment
+        
+        # Set column widths
+        ws1.column_dimensions['A'].width = 5
+        ws1.column_dimensions['B'].width = 25
+        ws1.column_dimensions['C'].width = 15
+        ws1.column_dimensions['D'].width = 18
+        ws1.column_dimensions['E'].width = 18
+        
+        # Sheet 2: db nama dokter
+        ws2 = wb.create_sheet('db nama dokter')
+        headers2 = ['No', 'Nama Dokter']
+        
+        for col, header in enumerate(headers2, 1):
+            cell = ws2.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = center_alignment
+        
+        # Add sample data
+        sample_data2 = [
+            [1, 'Dr. Budi Santoso'],
+            [2, 'Dr. Siti Nurhaliza'],
+            [3, 'Dr. Ahmad Wijaya'],
+        ]
+        
+        for row_idx, row_data in enumerate(sample_data2, 2):
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws2.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = border
+                if col_idx > 1:
+                    cell.alignment = center_alignment
+        
+        # Set column widths
+        ws2.column_dimensions['A'].width = 5
+        ws2.column_dimensions['B'].width = 30
+        
+        # Sheet 3: db nama tindakan
+        ws3 = wb.create_sheet('db nama tindakan')
+        headers3 = ['No', 'Nama Tindakan', 'Kelas', 'Kategory', 'Sales Item Type', 'Amount']
+        
+        for col, header in enumerate(headers3, 1):
+            cell = ws3.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = center_alignment
+        
+        # Add sample data
+        sample_data3 = [
+            [1, 'Obat Anestesi', 'BASIC', 'Obat', 'Medicine', 150000],
+            [2, 'Alat Steril', 'STANDARD', 'Alat', 'Equipment', 200000],
+            [3, 'Transfusi Darah', 'VIP', 'Layanan', 'Service', 500000],
+        ]
+        
+        for row_idx, row_data in enumerate(sample_data3, 2):
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws3.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = border
+                if col_idx > 1:
+                    cell.alignment = center_alignment
+        
+        # Set column widths
+        ws3.column_dimensions['A'].width = 5
+        ws3.column_dimensions['B'].width = 25
+        ws3.column_dimensions['C'].width = 15
+        ws3.column_dimensions['D'].width = 15
+        ws3.column_dimensions['E'].width = 18
+        ws3.column_dimensions['F'].width = 15
+        
+        # Save to BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Return file
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'template_pbo_database_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
         
     except Exception as e:
-        raise Exception(f"Error importing data: {str(e)}")
-    
-    return stats
+        flash(f'Terjadi kesalahan saat membuat template: {str(e)}', 'danger')
+        return redirect(url_for('upload_database'))
 
 # Template filters
 @app.template_filter('currency')

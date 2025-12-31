@@ -128,6 +128,11 @@ class Database:
         results = Doctor.query.order_by(Doctor.nama_dokter).all()
         return [r.to_dict() for r in results]
     
+    def get_doctor_by_name(self, nama_dokter):
+        """Get doctor by name"""
+        doc = Doctor.query.filter_by(nama_dokter=nama_dokter).first()
+        return doc.to_dict() if doc else None
+    
     def add_doctor(self, nama_dokter):
         """Add new doctor"""
         try:
@@ -403,6 +408,60 @@ class Database:
             results = PBOData.query.filter((getattr(PBOData, db_field).like(f'%{value}%')) & (PBOData.is_latest == 1)).order_by(PBOData.id.desc()).all()
         
         return [r.to_dict() for r in results]
+    
+    # Room Type Operations
+    def get_all_room_types(self):
+        """Get all room types"""
+        from models_sqlalchemy import RoomType
+        results = RoomType.query.order_by(RoomType.harga_per_hari).all()
+        return [r.to_dict() for r in results]
+    
+    def get_room_type_by_name(self, nama_kamar):
+        """Get room type by name"""
+        from models_sqlalchemy import RoomType
+        room = RoomType.query.filter_by(nama_kamar=nama_kamar).first()
+        return room.to_dict() if room else None
+    
+    def add_room_type(self, nama_kamar, harga_per_hari, deskripsi=''):
+        """Add new room type"""
+        from models_sqlalchemy import RoomType
+        try:
+            room = RoomType(nama_kamar=nama_kamar, harga_per_hari=harga_per_hari, deskripsi=deskripsi)
+            db.session.add(room)
+            db.session.commit()
+            return room.id
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error adding room type: {e}")
+            return None
+    
+    def update_room_type(self, room_id, nama_kamar, harga_per_hari, deskripsi=''):
+        """Update room type"""
+        from models_sqlalchemy import RoomType
+        room = RoomType.query.get(room_id)
+        if room:
+            room.nama_kamar = nama_kamar
+            room.harga_per_hari = harga_per_hari
+            room.deskripsi = deskripsi
+            db.session.commit()
+            return True
+        return False
+    
+    def delete_room_type(self, room_id):
+        """Delete room type"""
+        from models_sqlalchemy import RoomType
+        room = RoomType.query.get(room_id)
+        if room:
+            db.session.delete(room)
+            db.session.commit()
+            return True
+        return False
+    
+    def delete_all_room_types(self):
+        """Delete all room types"""
+        from models_sqlalchemy import RoomType
+        RoomType.query.delete()
+        db.session.commit()
     
     def count_latest_pbo(self):
         """Count latest PBO records"""

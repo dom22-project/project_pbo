@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tipe Kamar{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-pencil-square"></i> Edit Tipe Kamar
+            </h1>
+            <p class="lead text-muted">Update informasi tipe kamar</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-door-closed"></i> Informasi Tipe Kamar</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Nama Kamar -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <strong>Nama Tipe Kamar</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" name="nama_kamar" 
+                                   value="{{ room.nama_kamar }}" required>
+                            <small class="text-muted">Nama unik untuk setiap tipe kamar</small>
+                        </div>
+
+                        <!-- Harga per Hari -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <strong>Harga per Hari</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_per_hari" 
+                                       value="{{ room.harga_per_hari | int }}" min="0" step="1000" required>
+                            </div>
+                            <small class="text-muted">Masukkan harga dalam rupiah tanpa titik/koma</small>
+                        </div>
+
+                        <!-- Deskripsi -->
+                        <div class="mb-4">
+                            <label class="form-label">Deskripsi (Opsional)</label>
+                            <textarea class="form-control" name="deskripsi" rows="3">{{ room.deskripsi or '' }}</textarea>
+                            <small class="text-muted">Deskripsi singkat tentang tipe kamar ini</small>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Simpan Perubahan
+                            </button>
+                            <a href="{{ url_for('view_room_types') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Kembali
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="card mt-4 border-info">
+                <div class="card-body">
+                    <h6 class="card-title text-info"><i class="bi bi-info-circle"></i> Informasi</h6>
+                    <p class="card-text small mb-0">
+                        Perubahan harga akan diterapkan untuk PBO yang dibuat setelah perubahan ini disimpan.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -30,7 +30,12 @@
                         </ul>
                     </li>
                     <li><strong>Backup otomatis</strong> akan dibuat sebelum import</li>
-                    <li>Data lama akan <strong>diganti</strong> dengan data baru</li>
+                    <li><strong>Dua mode upload tersedia:</strong>
+                        <ul>
+                            <li><strong>Merge Mode (Default):</strong> Data baru ditambahkan, data yang sudah ada di-skip</li>
+                            <li><strong>Replace Mode:</strong> Semua data lama dihapus, kemudian diganti dengan data baru</li>
+                        </ul>
+                    </li>
                 </ul>
                 <div class="alert alert-warning mb-0" role="alert">
                     <strong><i class="bi bi-download"></i> Belum punya template?</strong><br>
@@ -77,6 +82,24 @@
                             </ul>
                         </div>
 
+                        <!-- Replace Mode Option -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="replaceMode" 
+                                       name="replace_mode"
+                                       value="true">
+                                <label class="form-check-label" for="replaceMode">
+                                    <strong>Mode GANTI: Hapus semua data lama sebelum import data baru</strong>
+                                </label>
+                                <div class="form-text mt-2">
+                                    <i class="bi bi-info-circle"></i> Jika TIDAK dicentang: Data baru akan di-merge (data yang sudah ada akan di-skip)<br>
+                                    <i class="bi bi-info-circle"></i> Jika DICENTANG: Semua data operasi, dokter, dan tindakan akan dihapus terlebih dahulu, kemudian di-import ulang dari file Excel
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Confirmation Checkbox -->
                         <div class="mb-4">
                             <div class="form-check">
@@ -85,7 +108,7 @@
                                        id="confirmUpload" 
                                        required>
                                 <label class="form-check-label" for="confirmUpload">
-                                    <strong>Saya memahami bahwa data lama akan diganti dengan data baru dari file ini</strong>
+                                    <strong>Saya memahami risiko dan siap melanjutkan upload</strong>
                                 </label>
                             </div>
                         </div>

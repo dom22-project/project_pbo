@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Tambah Tipe Kamar{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-plus-circle"></i> Tambah Tipe Kamar Baru
+            </h1>
+            <p class="lead text-muted">Isi formulir di bawah untuk menambah tipe kamar baru</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-door-closed"></i> Informasi Tipe Kamar</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Nama Kamar -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <strong>Nama Tipe Kamar</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" name="nama_kamar" 
+                                   placeholder="Contoh: Basic, Standard, Deluxe, VIP, Suite" 
+                                   required>
+                            <small class="text-muted">Nama unik untuk setiap tipe kamar</small>
+                        </div>
+
+                        <!-- Harga per Hari -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <strong>Harga per Hari</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_per_hari" 
+                                       placeholder="350000" min="0" step="1000" required>
+                            </div>
+                            <small class="text-muted">Masukkan harga dalam rupiah tanpa titik/koma</small>
+                        </div>
+
+                        <!-- Deskripsi -->
+                        <div class="mb-4">
+                            <label class="form-label">Deskripsi (Opsional)</label>
+                            <textarea class="form-control" name="deskripsi" rows="3" 
+                                      placeholder="Contoh: Kamar dengan fasilitas standar, cocok untuk pasien regular"></textarea>
+                            <small class="text-muted">Deskripsi singkat tentang tipe kamar ini</small>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Simpan Tipe Kamar
+                            </button>
+                            <a href="{{ url_for('view_room_types') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Kembali
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Template Examples -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Contoh Tipe Kamar yang Umum</h6>
+                </div>
+                <div class="card-body small">
+                    <ul class="mb-0">
+                        <li><strong>Basic:</strong> Rp 350.000 - Kamar standar dengan fasilitas dasar</li>
+                        <li><strong>Standard:</strong> Rp 750.000 - Kamar nyaman dengan fasilitas lengkap</li>
+                        <li><strong>Deluxe:</strong> Rp 950.000 - Kamar mewah dengan pemandangan bagus</li>
+                        <li><strong>VIP:</strong> Rp 1.900.000 - Kamar premium dengan layanan eksklusif</li>
+                        <li><strong>VVIP:</strong> Rp 2.000.000 - Kamar very premium dengan fasilitas terbaik</li>
+                        <li><strong>Suite:</strong> Rp 5.000.000 - Kamar suite dengan ruang terpisah</li>
+                        <li><strong>Presidential Suite:</strong> Rp 7.500.000 - Kamar presiden dengan layanan concierge</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

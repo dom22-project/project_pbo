@@ -36,7 +36,7 @@ with app.app_context():
         db.session.commit()
     
     # Add default operations if none exist
-    from models_sqlalchemy import OperationTable
+    from models_sqlalchemy import OperationTable, RoomType
     if OperationTable.query.count() == 0:
         default_operations = [
             OperationTable(kode='4199999994', nama_tindakan='DOCTORS PROCEDURE TABLE 3', kelas='ODC', biaya_dokter=4934000, biaya_rs=0, total_biaya=4934000),
@@ -45,6 +45,21 @@ with app.app_context():
         ]
         db.session.add_all(default_operations)
         db.session.commit()
+    
+    # Add default room types if none exist
+    if RoomType.query.count() == 0:
+        default_room_types = [
+            RoomType(nama_kamar='Basic', harga_per_hari=350000),
+            RoomType(nama_kamar='Standard', harga_per_hari=750000),
+            RoomType(nama_kamar='Deluxe', harga_per_hari=950000),
+            RoomType(nama_kamar='VIP', harga_per_hari=1900000),
+            RoomType(nama_kamar='VVIP', harga_per_hari=2000000),
+            RoomType(nama_kamar='Suite', harga_per_hari=5000000),
+            RoomType(nama_kamar='Presidential Suite', harga_per_hari=7500000),
+        ]
+        db.session.add_all(default_room_types)
+        db.session.commit()
+        print("[INIT] Default room types created")
 
 # Helper function to import Excel to database
 def import_excel_to_database(file_path, db_helper):
@@ -61,8 +76,12 @@ def import_excel_to_database(file_path, db_helper):
             'tindakan_skipped': 0
         }
         
+        print(f"[IMPORT] Starting import from {file_path}")
+        print(f"[IMPORT] Available sheets: {wb.sheetnames}")
+        
         # Import Operasi (Tabel Operasi)
         if 'db table operasi' in wb.sheetnames:
+            print("[IMPORT] Processing sheet: db table operasi")
             ws = wb['db table operasi']
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
@@ -77,7 +96,7 @@ def import_excel_to_database(file_path, db_helper):
                     harga_operator = row[3]
                     harga_anestesi = row[4]
                     
-                    if not all([fee_operator, kelas, harga_operator, harga_anestesi]):
+                    if not all([fee_operator, kelas]):
                         stats['operations_skipped'] += 1
                         continue
                     
@@ -90,20 +109,33 @@ def import_excel_to_database(file_path, db_helper):
                         stats['operations_skipped'] += 1
                         continue
                     
+                    # Safely convert harga to float
+                    try:
+                        biaya_dokter = float(harga_operator) if harga_operator else 0
+                    except (ValueError, TypeError):
+                        biaya_dokter = 0
+                    
+                    try:
+                        biaya_rs = float(harga_anestesi) if harga_anestesi else 0
+                    except (ValueError, TypeError):
+                        biaya_rs = 0
+                    
                     db_helper.add_operation(
                         kode=kode,
                         nama_tindakan=str(fee_operator),
                         kelas=str(kelas),
-                        biaya_dokter=float(harga_operator or 0),
-                        biaya_rs=float(harga_anestesi or 0)
+                        biaya_dokter=biaya_dokter,
+                        biaya_rs=biaya_rs
                     )
                     stats['operations_imported'] += 1
                 except Exception as e:
+                    print(f"[IMPORT ERROR] Row {row_idx}: {str(e)}")
                     stats['operations_skipped'] += 1
                     continue
         
         # Import Dokter
         if 'db nama dokter' in wb.sheetnames:
+            print("[IMPORT] Processing sheet: db nama dokter")
             ws = wb['db nama dokter']
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
@@ -119,8 +151,8 @@ def import_excel_to_database(file_path, db_helper):
                         stats['doctors_skipped'] += 1
                         continue
                     
-                    # Check if exists
-                    existing = db_helper.get_user_by_username(str(nama_dokter))
+                    # Check if doctor already exists in Doctor table
+                    existing = db_helper.get_doctor_by_name(str(nama_dokter))
                     if existing:
                         stats['doctors_duplicates'] += 1
                         continue
@@ -131,11 +163,13 @@ def import_excel_to_database(file_path, db_helper):
                     else:
                         stats['doctors_duplicates'] += 1
                 except Exception as e:
+                    print(f"[IMPORT ERROR] Doctor Row {row_idx}: {str(e)}")
                     stats['doctors_skipped'] += 1
                     continue
         
         # Import Tindakan (opsional)
         if 'db nama tindakan' in wb.sheetnames:
+            print("[IMPORT] Processing sheet: db nama tindakan")
             ws = wb['db nama tindakan']
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
@@ -147,30 +181,40 @@ def import_excel_to_database(file_path, db_helper):
                     no = row[0]
                     nama_tindakan = row[1]
                     kelas = row[2]
-                    kategory = row[3]
-                    sales_item_type = row[4]
-                    amount = row[5]
+                    kategory = row[3] if len(row) > 3 else ''
+                    sales_item_type = row[4] if len(row) > 4 else ''
+                    amount = row[5] if len(row) > 5 else 0
                     
                     if not all([nama_tindakan, kelas]):
                         stats['tindakan_skipped'] += 1
                         continue
+                    
+                    # Safely convert amount to float
+                    try:
+                        amount_float = float(amount) if amount else 0
+                    except (ValueError, TypeError):
+                        amount_float = 0
                     
                     db_helper.add_tindakan_item(
                         nama_tindakan=str(nama_tindakan),
                         kelas=str(kelas),
                         kategory=str(kategory or ''),
                         sales_item_type=str(sales_item_type or ''),
-                        amount=float(amount or 0)
+                        amount=amount_float
                     )
                     stats['tindakan_imported'] += 1
                 except Exception as e:
+                    print(f"[IMPORT ERROR] Tindakan Row {row_idx}: {str(e)}")
                     stats['tindakan_skipped'] += 1
                     continue
         
         wb.close()
+        print(f"[IMPORT] Import completed successfully")
+        print(f"[IMPORT] Stats: {stats}")
         return stats
         
     except Exception as e:
+        print(f"[IMPORT FATAL ERROR] {str(e)}")
         raise Exception(f"Error importing Excel: {str(e)}")
 
 # Authentication decorator
@@ -763,6 +807,105 @@ def delete_tindakan(tindakan_id):
     
     return redirect(url_for('view_tindakan'))
 
+# Room Type Routes
+@app.route('/room-types')
+@login_required
+@admin_required
+def view_room_types():
+    """View all room types"""
+    room_types = db_helper.get_all_room_types()
+    return render_template('room_types.html', room_types=room_types)
+
+@app.route('/room-type/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_room_type():
+    """Add new room type"""
+    if request.method == 'POST':
+        try:
+            nama_kamar = request.form.get('nama_kamar', '').strip()
+            harga_per_hari = float(request.form.get('harga_per_hari', 0))
+            deskripsi = request.form.get('deskripsi', '')
+            
+            if not nama_kamar or harga_per_hari <= 0:
+                flash('Nama kamar dan harga harus diisi dengan benar', 'danger')
+                return redirect(url_for('add_room_type'))
+            
+            result = db_helper.add_room_type(nama_kamar, harga_per_hari, deskripsi)
+            if result:
+                flash(f'Tipe kamar "{nama_kamar}" berhasil ditambahkan', 'success')
+                return redirect(url_for('view_room_types'))
+            else:
+                flash('Gagal menambahkan tipe kamar', 'danger')
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
+    
+    return render_template('add_room_type.html')
+
+@app.route('/room-type/edit/<int:room_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_room_type(room_id):
+    """Edit room type"""
+    from models_sqlalchemy import RoomType
+    room = RoomType.query.get(room_id)
+    
+    if not room:
+        flash('Tipe kamar tidak ditemukan', 'danger')
+        return redirect(url_for('view_room_types'))
+    
+    if request.method == 'POST':
+        try:
+            nama_kamar = request.form.get('nama_kamar', '').strip()
+            harga_per_hari = float(request.form.get('harga_per_hari', 0))
+            deskripsi = request.form.get('deskripsi', '')
+            
+            if not nama_kamar or harga_per_hari <= 0:
+                flash('Nama kamar dan harga harus diisi dengan benar', 'danger')
+                return redirect(url_for('edit_room_type', room_id=room_id))
+            
+            if db_helper.update_room_type(room_id, nama_kamar, harga_per_hari, deskripsi):
+                flash(f'Tipe kamar "{nama_kamar}" berhasil diperbarui', 'success')
+                return redirect(url_for('view_room_types'))
+            else:
+                flash('Gagal memperbarui tipe kamar', 'danger')
+        
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'danger')
+    
+    return render_template('edit_room_type.html', room=room.to_dict())
+
+@app.route('/room-type/delete/<int:room_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_room_type(room_id):
+    """Delete room type"""
+    try:
+        if db_helper.delete_room_type(room_id):
+            flash('Tipe kamar berhasil dihapus', 'success')
+        else:
+            flash('Gagal menghapus tipe kamar', 'danger')
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'danger')
+    
+    return redirect(url_for('view_room_types'))
+
+@app.route('/api/get-room-types', methods=['GET'])
+def api_get_room_types():
+    """API endpoint to get all room types"""
+    try:
+        room_types = db_helper.get_all_room_types()
+        return jsonify({
+            'success': True,
+            'room_types': room_types
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
 # Database Upload Route
 @app.route('/upload-database', methods=['GET', 'POST'])
 @login_required
@@ -823,9 +966,34 @@ def upload_database():
                 backup_filename = f'pbo_database_backup_{timestamp}.db'
                 backup_path = os.path.join(app.config['BACKUP_FOLDER'], backup_filename)
                 shutil.copy2(app.config['DATABASE_PATH'], backup_path)
+                print(f"[UPLOAD] Database backup created: {backup_path}")
+            
+            # Check if replace mode is enabled
+            replace_mode = request.form.get('replace_mode', 'false').lower() == 'true'
+            
+            if replace_mode:
+                print("[UPLOAD] Replace mode enabled - clearing existing data...")
+                try:
+                    db_helper.delete_all_operations()
+                    print("[UPLOAD] Cleared all operations")
+                    db_helper.delete_all_doctors()
+                    print("[UPLOAD] Cleared all doctors")
+                    db_helper.delete_all_tindakan_items()
+                    print("[UPLOAD] Cleared all tindakan items")
+                except Exception as e:
+                    print(f"[UPLOAD ERROR] Failed to clear data: {str(e)}")
+                    flash(f'Gagal menghapus data lama: {str(e)}', 'danger')
+                    return redirect(url_for('upload_database'))
             
             # Import data from Excel
-            import_stats = import_excel_to_database(upload_path, db_helper)
+            try:
+                import_stats = import_excel_to_database(upload_path, db_helper)
+            except Exception as import_error:
+                # Clean up uploaded file
+                if os.path.exists(upload_path):
+                    os.remove(upload_path)
+                flash(f'Error saat import data: {str(import_error)}', 'danger')
+                return redirect(url_for('upload_database'))
             
             # Clean up uploaded file
             os.remove(upload_path)

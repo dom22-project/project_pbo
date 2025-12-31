@@ -210,3 +210,25 @@ class User(db.Model):
             'role': self.role,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+class RoomType(db.Model):
+    __tablename__ = 'room_types'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nama_kamar = db.Column(db.String(255), unique=True, nullable=False)
+    harga_per_hari = db.Column(db.Float, nullable=False)
+    deskripsi = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f'<RoomType {self.nama_kamar}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nama_kamar': self.nama_kamar,
+            'harga_per_hari': self.harga_per_hari,
+            'deskripsi': self.deskripsi,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

@@ -76,17 +76,14 @@
                         <label class="form-label">Kelas <span class="text-danger">*</span></label>
                         <select class="form-select" name="kelas" id="kelas" required>
                             <option value="">-- Pilih Kelas --</option>
-                            <option value="Basic">Basic</option>
-                            <option value="Standard">Standard</option>
-                            <option value="Deluxe">Deluxe</option>
-                            <option value="VIP">VIP</option>
-                            <option value="VVIP">VVIP</option>
-                            <option value="Suite">Suite</option>
-                            <option value="President Suite">President Suite</option>
-                            <option value="ODC">ODC</option>
-                            <option value="ED">ED</option>
-                            <option value="OPD">OPD</option>
-                            <option value="OPD Executive">OPD Executive</option>
+                            <option value="BASIC">BASIC - Rp 350.000</option>
+                            <option value="STANDARD">STANDARD - Rp 750.000</option>
+                            <option value="DELUXE">DELUXE - Rp 950.000</option>
+                            <option value="VIP">VIP - Rp 1.900.000</option>
+                            <option value="VVIP">VVIP - Rp 2.000.000</option>
+                            <option value="SUITE">SUITE - Rp 5.000.000</option>
+                            <option value="PRESIDENTIAL SUITE">PRESIDENTIAL SUITE - Rp 7.500.000</option>
+                            <option value="ODC">ODC - Rp 633.000</option>
                         </select>
                     </div>
                 </div>
@@ -145,11 +142,11 @@
                         <input type="text" class="form-control cost-input" name="recovery_room_charge" value="0">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Alat</label>
+                        <label class="form-label">Sewa Alat</label>
                         <input type="text" class="form-control cost-input" name="alat" value="0">
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Diagnostic</label>
+                        <label class="form-label">Diagnostic / PA</label>
                         <input type="text" class="form-control cost-input" name="diagnostic" value="0">
                     </div>
                     <div class="col-md-4 mb-3">
@@ -162,11 +159,20 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Tarif Kamar per Hari</label>
-                        <input type="text" class="form-control" name="tarif_kamar" id="tarif_kamar" value="0" readonly>
+                        <div class="input-group">
+                            <span class="input-group-text">Rp</span>
+                            <input type="text" class="form-control" name="tarif_kamar" id="tarif_kamar" value="0" readonly>
+                        </div>
+                        <small class="text-muted">Otomatis berdasarkan kelas yang dipilih</small>
                     </div>
-                    <div class="col-md-6 mb-3">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12 mb-3">
                         <label class="form-label"><strong>TOTAL BIAYA</strong></label>
-                        <input type="text" class="form-control fw-bold" name="total" id="total" value="0" readonly>
+                        <div class="input-group">
+                            <span class="input-group-text">Rp</span>
+                            <input type="text" class="form-control fw-bold" name="total" id="total" value="0" readonly>
+                        </div>
                     </div>
                 </div>
                 <div class="text-end">
@@ -252,6 +258,19 @@ Tidak berlaku apabila ada perpindahan kelas perawatan (biaya mengikuti kelas ter
 <script>
 // Global data from backend
 let operationsData = {{ operations|tojson|safe }};
+
+// Mapping kelas ke harga kamar (berdasarkan room types)
+const kelasToRoomPrice = {
+    'BASIC': 350000,           // Basic
+    'STANDARD': 750000,        // Standard
+    'DELUXE': 950000,          // Deluxe
+    'VIP': 1900000,            // VIP
+    'VVIP': 2000000,           // VVIP
+    'SUITE': 5000000,          // Suite
+    'PRESIDENTIAL SUITE': 7500000, // Presidential Suite
+    'ODC': 633000              // ODC
+};
+
 let tindakanItemsData = {{ tindakan_items|tojson|safe }};
 </script>
 
@@ -301,19 +320,11 @@ $(document).ready(function() {
         const kelas = $(this).val();
         console.log('Kelas berubah ke:', kelas);
         
-        // Update room rate
-        $.ajax({
-            url: '/api/get-room-rate',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ kelas: kelas }),
-            success: function(response) {
-                if (response.success) {
-                    $('#tarif_kamar').val(response.tarif_kamar);
-                    calculateTotal();
-                }
-            }
-        });
+        // Update room rate based on class
+        if (kelas && kelasToRoomPrice[kelas]) {
+            $('#tarif_kamar').val(kelasToRoomPrice[kelas]);
+            calculateTotal();
+        }
         
         // Filter tindakan items based on selected class
         if (kelas) {
@@ -503,31 +514,36 @@ $(document).ready(function() {
     });
 
     function calculateTotal() {
+        // Parse currency values - remove dots/separators and convert to number
+        function parseValue(val) {
+            if (!val) return 0;
+            return parseInt(String(val).replace(/\./g, '').replace(/,/g, '') || '0');
+        }
+
+        // Collect all cost data from rincian biaya
         const data = {
-            konsultasi_pre_tindakan: $('#konsultasi_pre_tindakan').val() || 0,
-            diagnostic_pre_tindakan: $('[name="diagnostic_pre_tindakan"]').val() || 0,
-            surgeon: $('#surgeon').val() || 0,
-            anesthesi: $('#anesthesi').val() || 0,
-            ot_room_charge: $('#ot_room_charge').val() || 0,
-            recovery_room_charge: $('[name="recovery_room_charge"]').val() || 0,
-            alat: $('[name="alat"]').val() || 0,
-            diagnostic: $('[name="diagnostic"]').val() || 0,
-            medical_equipment: $('[name="medical_equipment"]').val() || 0,
-            obat_dan_alkes: $('[name="obat_dan_alkes"]').val() || 0,
-            tarif_kamar: $('#tarif_kamar').val() || 0
+            konsultasi_pre_tindakan: parseValue($('[name="konsultasi_pre_tindakan"]').val()) || 0,
+            diagnostic_pre_tindakan: parseValue($('[name="diagnostic_pre_tindakan"]').val()) || 0,
+            surgeon: parseValue($('#surgeon').val()) || 0,
+            anesthesi: parseValue($('#anesthesi').val()) || 0,
+            ot_room_charge: parseValue($('#ot_room_charge').val()) || 0,
+            recovery_room_charge: parseValue($('[name="recovery_room_charge"]').val()) || 0,
+            alat: parseValue($('[name="alat"]').val()) || 0,
+            diagnostic: parseValue($('[name="diagnostic"]').val()) || 0,
+            medical_equipment: parseValue($('[name="medical_equipment"]').val()) || 0,
+            obat_dan_alkes: parseValue($('[name="obat_dan_alkes"]').val()) || 0,
+            tarif_kamar: parseValue($('#tarif_kamar').val()) || 0
         };
 
-        $.ajax({
-            url: '/api/calculate-total',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function(response) {
-                if (response.success) {
-                    $('#total').val(response.total);
-                }
-            }
-        });
+        // Calculate total directly without AJAX for real-time update
+        let total = 0;
+        for (const key in data) {
+            total += data[key];
+        }
+
+        // Format and display total
+        $('#total').val(total.toLocaleString('id-ID'));
+        console.log('Total Biaya:', total);
     }
 
     // Add operation row button

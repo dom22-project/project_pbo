@@ -61,6 +61,15 @@ with app.app_context():
         db.session.commit()
         print("[INIT] Default room types created")
 
+# Helper function to find sheet name (case-insensitive)
+def find_sheet(workbook, sheet_name_pattern):
+    """Find sheet by name (case-insensitive)"""
+    pattern_lower = sheet_name_pattern.lower()
+    for sheet_name in workbook.sheetnames:
+        if sheet_name.lower() == pattern_lower:
+            return sheet_name
+    return None
+
 # Helper function to import Excel to database
 def import_excel_to_database(file_path, db_helper):
     """Import data from Excel file to database"""
@@ -73,35 +82,56 @@ def import_excel_to_database(file_path, db_helper):
             'doctors_duplicates': 0,
             'doctors_skipped': 0,
             'tindakan_imported': 0,
-            'tindakan_skipped': 0
+            'tindakan_skipped': 0,
+            'warnings': []
         }
         
         print(f"[IMPORT] Starting import from {file_path}")
         print(f"[IMPORT] Available sheets: {wb.sheetnames}")
         
+        # Find sheets (case-insensitive)
+        operasi_sheet = find_sheet(wb, 'db table operasi')
+        dokter_sheet = find_sheet(wb, 'db nama dokter')
+        tindakan_sheet = find_sheet(wb, 'db nama tindakan')
+        
+        # Log warnings for missing sheets
+        if not operasi_sheet:
+            warning_msg = "Sheet 'db table operasi' tidak ditemukan dalam file Excel"
+            print(f"[IMPORT WARNING] {warning_msg}")
+            stats['warnings'].append(warning_msg)
+        
+        if not dokter_sheet:
+            warning_msg = "Sheet 'db nama dokter' tidak ditemukan dalam file Excel"
+            print(f"[IMPORT WARNING] {warning_msg}")
+            stats['warnings'].append(warning_msg)
+        
         # Import Operasi (Tabel Operasi)
-        if 'db table operasi' in wb.sheetnames:
-            print("[IMPORT] Processing sheet: db table operasi")
-            ws = wb['db table operasi']
+        if operasi_sheet:
+            print(f"[IMPORT] Processing sheet: {operasi_sheet}")
+            ws = wb[operasi_sheet]
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
                     continue
-                if not row[0]:  # Skip empty rows
+                if not row or not row[0]:  # Skip empty rows
                     continue
                 
                 try:
                     no = row[0]
-                    fee_operator = row[1]
-                    kelas = row[2]
-                    harga_operator = row[3]
-                    harga_anestesi = row[4]
+                    fee_operator = row[1] if len(row) > 1 else None
+                    kelas = row[2] if len(row) > 2 else None
+                    harga_operator = row[3] if len(row) > 3 else None
+                    harga_anestesi = row[4] if len(row) > 4 else None
                     
                     if not all([fee_operator, kelas]):
                         stats['operations_skipped'] += 1
                         continue
                     
                     # Generate kode
-                    kode = f"{int(no):04d}"
+                    try:
+                        kode = f"{int(no):04d}"
+                    except (ValueError, TypeError):
+                        stats['operations_skipped'] += 1
+                        continue
                     
                     # Check if exists
                     existing = db_helper.get_operation_by_code(kode)
@@ -129,58 +159,71 @@ def import_excel_to_database(file_path, db_helper):
                     )
                     stats['operations_imported'] += 1
                 except Exception as e:
-                    print(f"[IMPORT ERROR] Row {row_idx}: {str(e)}")
+                    print(f"[IMPORT ERROR] Operasi Row {row_idx}: {str(e)}")
                     stats['operations_skipped'] += 1
                     continue
         
         # Import Dokter
-        if 'db nama dokter' in wb.sheetnames:
-            print("[IMPORT] Processing sheet: db nama dokter")
-            ws = wb['db nama dokter']
+        if dokter_sheet:
+            print(f"[IMPORT] Processing sheet: {dokter_sheet}")
+            ws = wb[dokter_sheet]
+            doctor_count = 0
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
                     continue
-                if not row[0]:  # Skip empty rows
+                if not row or not row[0]:  # Skip empty rows
                     continue
                 
                 try:
-                    no = row[0]
-                    nama_dokter = row[1]
+                    # Get nama_dokter from column 2 (index 1) or column 1 (index 0)
+                    # Try column B first (index 1), fallback to column A (index 0)
+                    nama_dokter = row[1] if len(row) > 1 and row[1] else row[0]
                     
                     if not nama_dokter:
                         stats['doctors_skipped'] += 1
                         continue
                     
+                    nama_dokter = str(nama_dokter).strip()
+                    if not nama_dokter:
+                        stats['doctors_skipped'] += 1
+                        continue
+                    
                     # Check if doctor already exists in Doctor table
-                    existing = db_helper.get_doctor_by_name(str(nama_dokter))
+                    existing = db_helper.get_doctor_by_name(nama_dokter)
                     if existing:
                         stats['doctors_duplicates'] += 1
                         continue
                     
-                    result = db_helper.add_doctor(str(nama_dokter))
+                    result = db_helper.add_doctor(nama_dokter)
                     if result:
                         stats['doctors_imported'] += 1
+                        doctor_count += 1
+                        print(f"[IMPORT] Doctor imported: {nama_dokter}")
                     else:
                         stats['doctors_duplicates'] += 1
                 except Exception as e:
                     print(f"[IMPORT ERROR] Doctor Row {row_idx}: {str(e)}")
                     stats['doctors_skipped'] += 1
                     continue
+            
+            print(f"[IMPORT] Total doctors imported: {doctor_count}")
+        else:
+            print("[IMPORT] Sheet 'db nama dokter' not found - skipping doctor import")
         
         # Import Tindakan (opsional)
-        if 'db nama tindakan' in wb.sheetnames:
-            print("[IMPORT] Processing sheet: db nama tindakan")
-            ws = wb['db nama tindakan']
+        if tindakan_sheet:
+            print(f"[IMPORT] Processing sheet: {tindakan_sheet}")
+            ws = wb[tindakan_sheet]
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
                     continue
-                if not row[0]:  # Skip empty rows
+                if not row or not row[0]:  # Skip empty rows
                     continue
                 
                 try:
                     no = row[0]
-                    nama_tindakan = row[1]
-                    kelas = row[2]
+                    nama_tindakan = row[1] if len(row) > 1 else None
+                    kelas = row[2] if len(row) > 2 else None
                     kategory = row[3] if len(row) > 3 else ''
                     sales_item_type = row[4] if len(row) > 4 else ''
                     amount = row[5] if len(row) > 5 else 0
@@ -944,12 +987,22 @@ def upload_database():
             # Validate Excel file structure
             try:
                 wb = openpyxl.load_workbook(upload_path)
+                
+                # Check for required sheets (case-insensitive)
+                sheet_names_lower = [s.lower() for s in wb.sheetnames]
                 required_sheets = ['db table operasi', 'db nama dokter']
-                missing_sheets = [sheet for sheet in required_sheets if sheet not in wb.sheetnames]
+                missing_sheets = []
+                
+                for req_sheet in required_sheets:
+                    if req_sheet.lower() not in sheet_names_lower:
+                        missing_sheets.append(req_sheet)
                 
                 if missing_sheets:
                     os.remove(upload_path)
-                    flash(f'File Excel tidak memiliki sheet yang diperlukan: {", ".join(missing_sheets)}', 'danger')
+                    error_msg = f'File Excel tidak memiliki sheet yang diperlukan:\n- {chr(10).join(missing_sheets)}\n\nSheet yang ditemukan dalam file Anda:\n- {chr(10).join(wb.sheetnames)}'
+                    flash(error_msg, 'danger')
+                    print(f"[UPLOAD ERROR] Missing sheets: {missing_sheets}")
+                    print(f"[UPLOAD ERROR] Available sheets: {wb.sheetnames}")
                     return redirect(url_for('upload_database'))
                 
                 wb.close()
@@ -957,6 +1010,7 @@ def upload_database():
                 if os.path.exists(upload_path):
                     os.remove(upload_path)
                 flash(f'File Excel tidak valid: {str(e)}', 'danger')
+                print(f"[UPLOAD ERROR] Excel validation error: {str(e)}")
                 return redirect(url_for('upload_database'))
             
             # Backup current database
@@ -1014,7 +1068,8 @@ def upload_database():
                                  total_operations=len(db_helper.get_all_operations()),
                                  total_doctors=db_helper.count_doctors(),
                                  total_tindakan=db_helper.count_tindakan_items(),
-                                 backup_path=backup_path)
+                                 backup_path=backup_path,
+                                 warnings=import_stats.get('warnings', []))
             
         except Exception as e:
             flash(f'Terjadi kesalahan saat upload: {str(e)}', 'danger')

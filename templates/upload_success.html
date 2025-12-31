@@ -119,6 +119,21 @@
 
                     <hr>
 
+                    <!-- Warnings (if any) -->
+                    {% if warnings %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Perhatian:</h6>
+                        <ul class="mb-0 small">
+                            {% for warning in warnings %}
+                            <li>{{ warning }}</li>
+                            {% endfor %}
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
                     <!-- Help & Explanation -->
                     <div class="alert alert-info">
                         <h6 class="alert-heading"><i class="bi bi-info-circle"></i> Arti Status Import:</h6>

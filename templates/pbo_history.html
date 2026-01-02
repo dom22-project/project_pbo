@@ -39,6 +39,7 @@
                 <table class="table table-hover">
                     <thead class="table-light">
                         <tr>
+                            <th style="width: 5%">Expand</th>
                             <th>Versi</th>
                             <th>Tanggal</th>
                             <th>Diedit Oleh</th>
@@ -50,6 +51,12 @@
                     <tbody>
                         {% for version in versions %}
                         <tr {% if version.is_latest %}class="table-success"{% endif %}>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" 
+                                        data-bs-target="#details-{{ version.id }}" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </td>
                             <td>
                                 <strong>Versi {{ version.version_number }}</strong>
                             </td>
@@ -105,6 +112,48 @@
                                 </div>
                             </td>
                         </tr>
+                        <!-- Expandable Row for Operation Details -->
+                        <tr class="collapse" id="details-{{ version.id }}">
+                            <td colspan="7">
+                                <div class="p-3">
+                                    <h6 class="mb-3">
+                                        <i class="bi bi-table"></i> Tabel Operasi
+                                    </h6>
+                                    {% if version.operations %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 8%">No</th>
+                                                    <th style="width: 12%">Kode</th>
+                                                    <th style="width: 30%">Nama Tindakan</th>
+                                                    <th style="width: 10%">Kelas</th>
+                                                    <th style="width: 15%">Biaya Dokter</th>
+                                                    <th style="width: 15%">Biaya RS</th>
+                                                    <th style="width: 10%">Persentase</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for op in version.operations %}
+                                                <tr>
+                                                    <td>{{ op.index }}</td>
+                                                    <td><code>{{ op.kode }}</code></td>
+                                                    <td><strong>{{ op.nama_tindakan }}</strong></td>
+                                                    <td><span class="badge bg-info">{{ op.kelas }}</span></td>
+                                                    <td>{{ op.biaya_dokter|currency }}</td>
+                                                    <td>{{ op.biaya_rs|currency }}</td>
+                                                    <td>{{ (op.persentase * 100)|int }}%</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted mb-0"><i class="bi bi-info-circle"></i> Tidak ada data tabel operasi</p>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -119,6 +168,7 @@
                 <div class="card-body">
                     <h6>Keterangan:</h6>
                     <ul class="mb-0">
+                        <li><i class="bi bi-chevron-down text-secondary"></i> <strong>Expand:</strong> Lihat detail operasi & database tindakan</li>
                         <li><i class="bi bi-eye text-info"></i> <strong>View:</strong> Lihat detail versi</li>
                         <li><i class="bi bi-arrow-counterclockwise text-warning"></i> <strong>Restore:</strong> Kembalikan ke versi ini (akan membuat versi baru)</li>
                         <li><i class="bi bi-arrow-left-right text-secondary"></i> <strong>Compare:</strong> Bandingkan dengan versi sebelumnya</li>

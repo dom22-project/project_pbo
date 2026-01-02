@@ -633,9 +633,34 @@ def pbo_history(pbo_id):
     # Get current PBO data for context
     current_pbo = db_helper.get_pbo_by_id(pbo_id)
     
+    # Get all operations from database for reference
+    from models_sqlalchemy import OperationTable
+    all_operations = OperationTable.query.all()
+    operations_dict = {op.kode: op.to_dict() for op in all_operations}
+    
+    # Enhance versions with operation details
+    for version in versions:
+        version['operations'] = []
+        for i in range(1, 5):
+            kode_key = f'tabel_operasi{i}'
+            if version.get(kode_key):
+                kode = version[kode_key]
+                op_detail = operations_dict.get(kode, {})
+                version['operations'].append({
+                    'index': i,
+                    'kode': kode,
+                    'nama_tindakan': op_detail.get('nama_tindakan', 'Tidak dikenal'),
+                    'kelas': op_detail.get('kelas', '-'),
+                    'biaya_dokter': op_detail.get('biaya_dokter', 0),
+                    'biaya_rs': op_detail.get('biaya_rs', 0),
+                    'total_biaya': op_detail.get('total_biaya', 0),
+                    'persentase': version.get(f'persentase_operasi{i}', 1.0)
+                })
+    
     return render_template('pbo_history.html', 
                          versions=versions,
-                         current_pbo=current_pbo)
+                         current_pbo=current_pbo,
+                         operations_dict=operations_dict)
 
 @app.route('/compare/<int:version1_id>/<int:version2_id>')
 @login_required

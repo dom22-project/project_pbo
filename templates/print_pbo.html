@@ -215,7 +215,15 @@
                 {% if pbo['tabel_operasi' ~ i] %}
                 <tr>
                     <td>{{ i }}</td>
-                    <td>{{ pbo['tabel_operasi' ~ i] }}</td>
+                    <td>
+                        {% set operasi_text = pbo['tabel_operasi' ~ i]|string %}
+                        {% if '(Dokter:' in operasi_text %}
+                            {# Extract text before the harga details #}
+                            {{ operasi_text.split('(Dokter:')[0]|trim }}
+                        {% else %}
+                            {{ pbo['tabel_operasi' ~ i] }}
+                        {% endif %}
+                    </td>
                     <td>{{ pbo['persentase_operasi' ~ i]|percentage }}</td>
                 </tr>
                 {% endif %}

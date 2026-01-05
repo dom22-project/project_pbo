@@ -109,59 +109,107 @@ def import_excel_to_database(file_path, db_helper):
         if operasi_sheet:
             print(f"[IMPORT] Processing sheet: {operasi_sheet}")
             ws = wb[operasi_sheet]
-            for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
-                if row_idx == 1:  # Skip header
-                    continue
-                if not row or not row[0]:  # Skip empty rows
-                    continue
+            print(f"[IMPORT] Sheet has {ws.max_row} rows")
+            
+            # Find actual header row (first row with data)
+            header_row_idx = None
+            for idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                if row and any(row):  # First non-empty row is header
+                    header_row_idx = idx
+                    print(f"[IMPORT] Header found at row {idx}: {row}")
+                    break
+            
+            if not header_row_idx:
+                print(f"[IMPORT ERROR] Could not find header row in {operasi_sheet}")
+                stats['operations_skipped'] += ws.max_row - 1
+            else:
+                rows_checked = 0
+                rows_with_empty_fee = 0
+                rows_with_existing_kode = 0
                 
-                try:
-                    no = row[0]
-                    fee_operator = row[1] if len(row) > 1 else None
-                    kelas = row[2] if len(row) > 2 else None
-                    harga_operator = row[3] if len(row) > 3 else None
-                    harga_anestesi = row[4] if len(row) > 4 else None
-                    
-                    if not all([fee_operator, kelas]):
-                        stats['operations_skipped'] += 1
+                for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
+                    # Skip rows before and including header
+                    if row_idx <= header_row_idx:
                         continue
                     
-                    # Generate kode
-                    try:
-                        kode = f"{int(no):04d}"
-                    except (ValueError, TypeError):
-                        stats['operations_skipped'] += 1
+                    # Skip empty rows
+                    if not row or not any(row):
                         continue
                     
-                    # Check if exists
-                    existing = db_helper.get_operation_by_code(kode)
-                    if existing:
+                    rows_checked += 1
+                    
+                    try:
+                        # Data from Excel: No, Fee Operator, Kelas, Harga Operator, Harga Anestesi
+                        # But sometimes No is empty, so we use Fee Operator name as identifier
+                        no = row[0]
+                        fee_operator = row[1] if len(row) > 1 else None
+                        kelas = row[2] if len(row) > 2 else None
+                        harga_operator = row[3] if len(row) > 3 else None
+                        harga_anestesi = row[4] if len(row) > 4 else None
+                        
+                        # Log first 3 rows for debugging
+                        if rows_checked <= 3:
+                            print(f"[IMPORT DEBUG] Row {row_idx}: no={no}, fee={fee_operator}, kelas={kelas}, harga_op={harga_operator}, harga_anes={harga_anestesi}")
+                        
+                        # Validate required fields
+                        if not fee_operator or not kelas:
+                            if rows_checked <= 3:
+                                print(f"[IMPORT DEBUG] Row {row_idx} skipped - empty fee_operator or kelas")
+                            rows_with_empty_fee += 1
+                            stats['operations_skipped'] += 1
+                            continue
+                        
+                        # Generate kode from row number if no is empty
+                        try:
+                            if no and no != '':
+                                kode = f"{int(no):04d}"
+                            else:
+                                # Use row index as fallback
+                                kode = f"{row_idx:04d}"
+                        except (ValueError, TypeError):
+                            kode = f"{row_idx:04d}"
+                        
+                        if rows_checked <= 3:
+                            print(f"[IMPORT DEBUG] Row {row_idx} generated kode={kode}")
+                        
+                        # Check if exists
+                        existing = db_helper.get_operation_by_code(kode)
+                        if existing:
+                            rows_with_existing_kode += 1
+                            stats['operations_skipped'] += 1
+                            continue
+                        
+                        # Safely convert harga to float
+                        try:
+                            biaya_dokter = float(harga_operator) if harga_operator else 0
+                        except (ValueError, TypeError):
+                            biaya_dokter = 0
+                        
+                        try:
+                            biaya_rs = float(harga_anestesi) if harga_anestesi else 0
+                        except (ValueError, TypeError):
+                            biaya_rs = 0
+                        
+                        db_helper.add_operation(
+                            kode=kode,
+                            nama_tindakan=str(fee_operator),
+                            kelas=str(kelas),
+                            biaya_dokter=biaya_dokter,
+                            biaya_rs=biaya_rs
+                        )
+                        stats['operations_imported'] += 1
+                        
+                        # Log first few successful imports
+                        if stats['operations_imported'] <= 3:
+                            print(f"[IMPORT OK] Operasi Row {row_idx}: kode={kode}, nama={fee_operator}, kelas={kelas}")
+                        
+                    except Exception as e:
+                        if rows_checked <= 3:
+                            print(f"[IMPORT ERROR] Operasi Row {row_idx}: {str(e)}")
                         stats['operations_skipped'] += 1
                         continue
-                    
-                    # Safely convert harga to float
-                    try:
-                        biaya_dokter = float(harga_operator) if harga_operator else 0
-                    except (ValueError, TypeError):
-                        biaya_dokter = 0
-                    
-                    try:
-                        biaya_rs = float(harga_anestesi) if harga_anestesi else 0
-                    except (ValueError, TypeError):
-                        biaya_rs = 0
-                    
-                    db_helper.add_operation(
-                        kode=kode,
-                        nama_tindakan=str(fee_operator),
-                        kelas=str(kelas),
-                        biaya_dokter=biaya_dokter,
-                        biaya_rs=biaya_rs
-                    )
-                    stats['operations_imported'] += 1
-                except Exception as e:
-                    print(f"[IMPORT ERROR] Operasi Row {row_idx}: {str(e)}")
-                    stats['operations_skipped'] += 1
-                    continue
+                
+                print(f"[IMPORT SUMMARY] Operasi: rows_checked={rows_checked}, rows_with_empty_fee={rows_with_empty_fee}, rows_with_existing_kode={rows_with_existing_kode}")
         
         # Import Dokter
         if dokter_sheet:

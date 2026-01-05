@@ -84,6 +84,7 @@
                             <option value="SUITE">SUITE - Rp 5.000.000</option>
                             <option value="PRESIDENTIAL SUITE">PRESIDENTIAL SUITE - Rp 7.500.000</option>
                             <option value="ODC">ODC - Rp 633.000</option>
+                            <option value="OPD">OPD - Rp 633.000</option>
                         </select>
                     </div>
                 </div>
@@ -127,7 +128,7 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Surgeon</label>
-                        <input type="text" class="form-control" name="surgeon" id="surgeon" value="0" readonly>
+                        <input type="number" class="form-control cost-input" name="surgeon" id="surgeon" value="0" placeholder="0" step="1000" min="0">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Anesthesi</label>
@@ -268,7 +269,8 @@ const kelasToRoomPrice = {
     'VVIP': 2000000,           // VVIP
     'SUITE': 5000000,          // Suite
     'PRESIDENTIAL SUITE': 7500000, // Presidential Suite
-    'ODC': 633000              // ODC
+    'ODC': 633000,             // ODC
+    'OPD': 633000              // OPD
 };
 
 let tindakanItemsData = {{ tindakan_items|tojson|safe }};

@@ -31,7 +31,8 @@ class Config:
         'VVIP': 1900000,
         'SUITE': 5000000,
         'PRESIDENTIAL SUITE': 7500000,
-        'ODC': 500000
+        'ODC': 500000,
+        'OPD': 633000
     }
     
     # Surcharge rates

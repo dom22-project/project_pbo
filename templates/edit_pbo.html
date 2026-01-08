@@ -152,11 +152,11 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Anesthesi</label>
-                        <input type="number" class="form-control" name="anesthesi" id="anesthesi" value="{{ pbo.anesthesi }}" readonly>
+                        <input type="number" class="form-control" name="anesthesi" id="anesthesi" value="{{ pbo.anesthesi }}" placeholder="0" step="1000" min="0">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">OT Room Charge</label>
-                        <input type="number" class="form-control" name="ot_room_charge" id="ot_room_charge" value="{{ pbo.ot_room_charge }}" readonly>
+                        <input type="number" class="form-control" name="ot_room_charge" id="ot_room_charge" value="{{ pbo.ot_room_charge }}" placeholder="0" step="1000" min="0">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Recovery Room Charge</label>
@@ -180,7 +180,7 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Tarif Kamar per Hari</label>
-                        <input type="number" class="form-control" name="tarif_kamar" id="tarif_kamar" value="{{ pbo.tarif_kamar }}" readonly>
+                        <input type="number" class="form-control cost-input" name="tarif_kamar_per_hari" value="{{ pbo.kelas }}" min="0" step="1000">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><strong>TOTAL BIAYA</strong></label>

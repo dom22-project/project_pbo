@@ -86,9 +86,15 @@
                         <label class="form-label">Kelas <span class="text-danger">*</span></label>
                         <select class="form-select" name="kelas" id="kelas" required>
                             <option value="">-- Pilih Kelas --</option>
-                            {% for kelas_option in ['Basic', 'Standard', 'Deluxe', 'VIP', 'VVIP', 'Suite', 'President Suite', 'ODC', 'ED', 'OPD', 'OPD Executive'] %}
-                            <option value="{{ kelas_option }}" {% if pbo.kelas == kelas_option %}selected{% endif %}>{{ kelas_option }}</option>
-                            {% endfor %}
+                            <option value="BASIC" {% if pbo.kelas == "BASIC" %}selected{% endif %}>BASIC - Rp 350.000</option>
+                            <option value="STANDARD" {% if pbo.kelas == "STANDARD" %}selected{% endif %}>STANDARD - Rp 750.000</option>
+                            <option value="DELUXE" {% if pbo.kelas == "DELUXE" %}selected{% endif %}>DELUXE - Rp 950.000</option>
+                            <option value="VIP" {% if pbo.kelas == "VIP" %}selected{% endif %}>VIP - Rp 1.900.000</option>
+                            <option value="VVIP" {% if pbo.kelas == "VVIP" %}selected{% endif %}>VVIP - Rp 2.000.000</option>
+                            <option value="SUITE" {% if pbo.kelas == "SUITE" %}selected{% endif %}>SUITE - Rp 5.000.000</option>
+                            <option value="PRESIDENTIAL SUITE" {% if pbo.kelas == "PRESIDENTIAL SUITE" %}selected{% endif %}>PRESIDENTIAL SUITE - Rp 7.500.000</option>
+                            <option value="ODC" {% if pbo.kelas == "ODC" %}selected{% endif %}>ODC - Rp 633.000</option>
+                            <option value="OPD" {% if pbo.kelas == "OPD" %}selected{% endif %}>OPD - Rp 633.000</option>
                         </select>
                     </div>
                 </div>
@@ -180,7 +186,7 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Tarif Kamar per Hari</label>
-                        <input type="number" class="form-control cost-input" name="tarif_kamar_per_hari" value="{{ pbo.kelas }}" min="0" step="1000">
+                        <input type="text" class="form-control" name="tarif_kamar" id="tarif_kamar" value="0" readonly>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label"><strong>TOTAL BIAYA</strong></label>
@@ -251,6 +257,22 @@
 <!-- Select2 JS -->
 <script src="{{ url_for('static', filename='vendor/select2/js/select2.min.js') }}"></script>
 
+<!-- Data for dynamic operations -->
+<script>
+// Mapping kelas ke harga kamar (berdasarkan room types)
+const kelasToRoomPrice = {
+    'BASIC': 350000,           // Basic
+    'STANDARD': 750000,        // Standard
+    'DELUXE': 950000,          // Deluxe
+    'VIP': 1900000,            // VIP
+    'VVIP': 2000000,           // VVIP
+    'SUITE': 5000000,          // Suite
+    'PRESIDENTIAL SUITE': 7500000, // Presidential Suite
+    'ODC': 633000,             // ODC
+    'OPD': 633000              // OPD
+};
+</script>
+
 <script>
 $(document).ready(function() {
     // Initialize Select2 for doctor selection with search
@@ -293,19 +315,9 @@ $(document).ready(function() {
         const kelas = $(this).val();
         console.log('Kelas berubah ke:', kelas);
         
-        // Update room rate
-        $.ajax({
-            url: '/api/get-room-rate',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ kelas: kelas }),
-            success: function(response) {
-                if (response.success) {
-                    $('#tarif_kamar').val(response.tarif_kamar);
-                    calculateTotal();
-                }
-            }
-        });
+        // Update room rate using client-side mapping
+        $('#tarif_kamar').val(kelasToRoomPrice[kelas] || 0);
+        calculateTotal();
         
         // Filter operasi based on selected class
         if (kelas) {

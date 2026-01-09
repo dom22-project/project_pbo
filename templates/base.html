@@ -43,6 +43,11 @@
                             <i class="bi bi-search"></i> Cari Data
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'monthly_report' %}active{% endif %}" href="{{ url_for('monthly_report') }}">
+                            <i class="bi bi-calendar-month"></i> Laporan Bulanan
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint in ['upload_database', 'view_tindakan', 'view_room_types', 'add_room_type', 'edit_room_type'] %}active{% endif %}" 
                            href="#" id="databaseDropdown" role="button" data-bs-toggle="dropdown">

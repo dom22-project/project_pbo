@@ -723,6 +723,48 @@ def compare_versions(version1_id, version2_id):
     return render_template('pbo_compare.html', 
                          comparison=comparison)
 
+@app.route('/monthly-report', methods=['GET', 'POST'])
+@login_required
+def monthly_report():
+    """Monthly report dashboard"""
+    from datetime import datetime
+    
+    # Get available months
+    available_months = db_helper.get_available_months()
+    
+    # Default to current month
+    now = datetime.now()
+    selected_year = int(request.args.get('year', now.year))
+    selected_month = int(request.args.get('month', now.month))
+    
+    # Get report data for selected month
+    report_data = db_helper.get_monthly_report(selected_year, selected_month)
+    
+    # Get month name in Indonesian
+    month_names = {
+        1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April', 5: 'Mei', 6: 'Juni',
+        7: 'Juli', 8: 'Agustus', 9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+    }
+    
+    month_name = month_names.get(selected_month, '')
+    
+    # Calculate statistics
+    total_operations = len(report_data)
+    total_revenue = sum([item['total'] or 0 for item in report_data])
+    unique_doctors = len(set([item['nama_dokter'] for item in report_data if item['nama_dokter']]))
+    unique_insurances = len(set([item['perusahaan_asuransi'] for item in report_data if item['perusahaan_asuransi']]))
+    
+    return render_template('monthly_report.html',
+                         report_data=report_data,
+                         available_months=available_months,
+                         selected_year=selected_year,
+                         selected_month=selected_month,
+                         month_name=month_name,
+                         total_operations=total_operations,
+                         total_revenue=total_revenue,
+                         unique_doctors=unique_doctors,
+                         unique_insurances=unique_insurances)
+
 @app.route('/restore/<int:version_id>', methods=['POST'])
 @login_required
 def restore_version(version_id):

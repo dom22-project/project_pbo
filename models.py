@@ -466,3 +466,52 @@ class Database:
     def count_latest_pbo(self):
         """Count latest PBO records"""
         return PBOData.query.filter_by(is_latest=1).count()
+    
+    def get_monthly_report(self, year, month):
+        """Get monthly report with operation name, doctor name, and insurance company"""
+        from datetime import date
+        from sqlalchemy import extract
+        
+        # Query data for specific month and year
+        results = PBOData.query.filter(
+            extract('year', PBOData.tanggal) == year,
+            extract('month', PBOData.tanggal) == month,
+            PBOData.is_latest == 1
+        ).order_by(PBOData.tanggal.desc()).all()
+        
+        # Format result
+        report_data = []
+        for pbo in results:
+            report_data.append({
+                'id': pbo.id,
+                'tanggal': pbo.tanggal,
+                'nama_operasi': pbo.nama_operasi,
+                'nama_dokter': pbo.nama_dokter,
+                'perusahaan_asuransi': pbo.perusahaan_asuransi,
+                'nama_pasien': pbo.nama_pasien,
+                'kelas': pbo.kelas,
+                'total': pbo.total
+            })
+        
+        return report_data
+    
+    def get_available_months(self):
+        """Get list of months that have data"""
+        from sqlalchemy import func, distinct, extract
+        
+        months = db.session.query(
+            extract('year', PBOData.tanggal).label('year'),
+            extract('month', PBOData.tanggal).label('month'),
+            func.count(distinct(PBOData.id)).label('count')
+        ).filter(
+            PBOData.tanggal.isnot(None),
+            PBOData.is_latest == 1
+        ).group_by(
+            extract('year', PBOData.tanggal),
+            extract('month', PBOData.tanggal)
+        ).order_by(
+            extract('year', PBOData.tanggal).desc(),
+            extract('month', PBOData.tanggal).desc()
+        ).all()
+        
+        return months

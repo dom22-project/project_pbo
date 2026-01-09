@@ -753,6 +753,20 @@ def monthly_report():
     total_revenue = sum([item['total'] or 0 for item in report_data])
     unique_doctors = len(set([item['nama_dokter'] for item in report_data if item['nama_dokter']]))
     unique_insurances = len(set([item['perusahaan_asuransi'] for item in report_data if item['perusahaan_asuransi']]))
+    # Most frequent names in the month
+    from collections import Counter
+
+    operasi_names = [item.get('nama_operasi') for item in report_data if item.get('nama_operasi')]
+    dokter_names = [item.get('nama_dokter') for item in report_data if item.get('nama_dokter')]
+    insurance_names = [item.get('perusahaan_asuransi') for item in report_data if item.get('perusahaan_asuransi')]
+
+    top_operasi = Counter(operasi_names).most_common(1)
+    top_dokter = Counter(dokter_names).most_common(1)
+    top_insurance = Counter(insurance_names).most_common(1)
+
+    top_operasi_name, top_operasi_count = (top_operasi[0][0], top_operasi[0][1]) if top_operasi else ('-', 0)
+    top_dokter_name, top_dokter_count = (top_dokter[0][0], top_dokter[0][1]) if top_dokter else ('-', 0)
+    top_insurance_name, top_insurance_count = (top_insurance[0][0], top_insurance[0][1]) if top_insurance else ('-', 0)
     
     return render_template('monthly_report.html',
                          report_data=report_data,
@@ -763,7 +777,14 @@ def monthly_report():
                          total_operations=total_operations,
                          total_revenue=total_revenue,
                          unique_doctors=unique_doctors,
-                         unique_insurances=unique_insurances)
+                         unique_insurances=unique_insurances,
+                         top_operasi_name=top_operasi_name,
+                         top_operasi_count=top_operasi_count,
+                         top_dokter_name=top_dokter_name,
+                         top_dokter_count=top_dokter_count,
+                         top_insurance_name=top_insurance_name,
+                         top_insurance_count=top_insurance_count)
+                         
 
 @app.route('/restore/<int:version_id>', methods=['POST'])
 @login_required

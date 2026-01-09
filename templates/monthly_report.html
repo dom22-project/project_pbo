@@ -168,6 +168,28 @@
         </div>
     </div>
 
+    <!-- Most Frequent Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-label">Operasi Terbanyak (Bulan ini)</div>
+                <div class="stat-value">{{ top_operasi_name }} <span class="text-muted" style="font-size:0.8rem">({{ top_operasi_count }})</span></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-label">Dokter Terbanyak (Bulan ini)</div>
+                <div class="stat-value">{{ top_dokter_name }} <span class="text-muted" style="font-size:0.8rem">({{ top_dokter_count }})</span></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-label">Perusahaan/Asuransi Terbanyak (Bulan ini)</div>
+                <div class="stat-value">{{ top_insurance_name }} <span class="text-muted" style="font-size:0.8rem">({{ top_insurance_count }})</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Report Table -->
     <div class="card">
         <div class="card-header bg-light">

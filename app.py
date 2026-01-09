@@ -126,6 +126,7 @@ def import_excel_to_database(file_path, db_helper):
                 rows_checked = 0
                 rows_with_empty_fee = 0
                 rows_with_existing_kode = 0
+                rows_with_empty_harga = 0
                 
                 for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                     # Skip rows before and including header
@@ -147,24 +148,37 @@ def import_excel_to_database(file_path, db_helper):
                         harga_operator = row[3] if len(row) > 3 else None
                         harga_anestesi = row[4] if len(row) > 4 else None
                         
+                        # Clean up strings - strip whitespace
+                        if isinstance(fee_operator, str):
+                            fee_operator = fee_operator.strip()
+                        if isinstance(kelas, str):
+                            kelas = kelas.strip()
+                        
                         # Log first 3 rows for debugging
                         if rows_checked <= 3:
-                            print(f"[IMPORT DEBUG] Row {row_idx}: no={no}, fee={fee_operator}, kelas={kelas}, harga_op={harga_operator}, harga_anes={harga_anestesi}")
+                            print(f"[IMPORT DEBUG] Row {row_idx}: no={no}, fee='{fee_operator}', kelas='{kelas}', harga_op={harga_operator}, harga_anes={harga_anestesi}")
                         
-                        # Validate required fields
-                        if not fee_operator or not kelas:
+                        # Validate required fields - need at least kelas (fee_operator can be derived)
+                        if not kelas:
                             if rows_checked <= 3:
-                                print(f"[IMPORT DEBUG] Row {row_idx} skipped - empty fee_operator or kelas")
+                                print(f"[IMPORT DEBUG] Row {row_idx} skipped - empty kelas")
                             rows_with_empty_fee += 1
                             stats['operations_skipped'] += 1
                             continue
+                        
+                        # If fee_operator is empty but kelas exists, use kelas as nama_tindakan
+                        if not fee_operator:
+                            fee_operator = f"Operasi {kelas}"
+                            if rows_checked <= 3:
+                                print(f"[IMPORT DEBUG] Row {row_idx} - fee_operator empty, using '{fee_operator}'")
                         
                         # Generate kode from row number if no is empty
                         try:
                             if no and no != '':
                                 kode = f"{int(no):04d}"
                             else:
-                                # Use row index as fallback
+                                # Use row index as fallback, but make it unique by adding count
+                                # Format: row_index_counter (e.g., 0002_1, 0002_2 for duplicates)
                                 kode = f"{row_idx:04d}"
                         except (ValueError, TypeError):
                             kode = f"{row_idx:04d}"
@@ -172,12 +186,27 @@ def import_excel_to_database(file_path, db_helper):
                         if rows_checked <= 3:
                             print(f"[IMPORT DEBUG] Row {row_idx} generated kode={kode}")
                         
-                        # Check if exists
+                        # Check if exists with this kode
                         existing = db_helper.get_operation_by_code(kode)
                         if existing:
-                            rows_with_existing_kode += 1
-                            stats['operations_skipped'] += 1
-                            continue
+                            # If duplicate, try generating alternate kode
+                            counter = 1
+                            original_kode = kode
+                            while db_helper.get_operation_by_code(kode):
+                                kode = f"{original_kode}_{counter}"
+                                counter += 1
+                                if counter > 100:  # Safety check
+                                    break
+                            
+                            if counter > 100:
+                                if rows_checked <= 3:
+                                    print(f"[IMPORT DEBUG] Row {row_idx} - too many duplicates, skipping")
+                                rows_with_existing_kode += 1
+                                stats['operations_skipped'] += 1
+                                continue
+                            
+                            if rows_checked <= 3:
+                                print(f"[IMPORT DEBUG] Row {row_idx} - kode {original_kode} exists, using {kode} instead")
                         
                         # Safely convert harga to float
                         try:
@@ -189,6 +218,12 @@ def import_excel_to_database(file_path, db_helper):
                             biaya_rs = float(harga_anestesi) if harga_anestesi else 0
                         except (ValueError, TypeError):
                             biaya_rs = 0
+                        
+                        # Log if both harga are empty (kategori header case)
+                        if not harga_operator and not harga_anestesi:
+                            rows_with_empty_harga += 1
+                            if rows_checked <= 5:
+                                print(f"[IMPORT WARNING] Row {row_idx} - '{fee_operator}' ({kelas}) has no harga, will be created with biaya=0")
                         
                         db_helper.add_operation(
                             kode=kode,
@@ -208,8 +243,6 @@ def import_excel_to_database(file_path, db_helper):
                             print(f"[IMPORT ERROR] Operasi Row {row_idx}: {str(e)}")
                         stats['operations_skipped'] += 1
                         continue
-                
-                print(f"[IMPORT SUMMARY] Operasi: rows_checked={rows_checked}, rows_with_empty_fee={rows_with_empty_fee}, rows_with_existing_kode={rows_with_existing_kode}")
         
         # Import Dokter
         if dokter_sheet:
@@ -246,7 +279,8 @@ def import_excel_to_database(file_path, db_helper):
                     if result:
                         stats['doctors_imported'] += 1
                         doctor_count += 1
-                        print(f"[IMPORT] Doctor imported: {nama_dokter}")
+                        if doctor_count <= 3:
+                            print(f"[IMPORT OK] Doctor imported: {nama_dokter}")
                     else:
                         stats['doctors_duplicates'] += 1
                 except Exception as e:
@@ -301,7 +335,14 @@ def import_excel_to_database(file_path, db_helper):
         
         wb.close()
         print(f"[IMPORT] Import completed successfully")
-        print(f"[IMPORT] Stats: {stats}")
+        print(f"[IMPORT] Final Stats - Operations: {stats['operations_imported']}, Doctors: {stats['doctors_imported']}, Tindakan: {stats['tindakan_imported']}")
+        
+        # Verify data was actually saved
+        verify_ops = len(db_helper.get_all_operations())
+        verify_docs = db_helper.count_doctors()
+        verify_tind = db_helper.count_tindakan_items()
+        print(f"[IMPORT] Verification - Operations in DB: {verify_ops}, Doctors in DB: {verify_docs}, Tindakan in DB: {verify_tind}")
+        
         return stats
         
     except Exception as e:

@@ -387,7 +387,7 @@ $(document).ready(function() {
     function updateAllOperationDropdowns() {
         $('.operation-row').each(function() {
             const rowId = $(this).data('row-id');
-            const selectElement = $(`#tabel_operasi${rowId}`);
+            const selectElement = $(`#operation_kode_${rowId}`);
             if (selectElement.length === 0) return; // Skip if element not found
             
             const currentValue = selectElement.val();
@@ -478,16 +478,24 @@ $(document).ready(function() {
     });
 
     function calculateSurgeryFees() {
+        // Collect operations from current form
+        const operations = [];
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const kode = $(`#operation_kode_${rowId}`).val();
+            const persentase = parseFloat($(`#operation_persentase_${rowId}`).val() || 100);
+            
+            if (kode && kode.trim()) {
+                operations.push({
+                    kode: kode.split(' - ')[0].trim(),  // Extract kode dari format "kode - nama"
+                    persentase: persentase > 1 ? persentase / 100 : persentase  // Convert to decimal if needed
+                });
+            }
+        });
+        
         const data = {
             sifat_operasi: $('#sifat_operasi').val(),
-            tabel_operasi1: $('#tabel_operasi1').val(),
-            tabel_operasi2: $('#tabel_operasi2').val(),
-            tabel_operasi3: $('#tabel_operasi3').val(),
-            tabel_operasi4: $('#tabel_operasi4').val(),
-            persentase_operasi1: $('#persentase_operasi1').val(),
-            persentase_operasi2: $('#persentase_operasi2').val(),
-            persentase_operasi3: $('#persentase_operasi3').val(),
-            persentase_operasi4: $('#persentase_operasi4').val()
+            operations: operations
         };
 
         $.ajax({
@@ -497,11 +505,14 @@ $(document).ready(function() {
             data: JSON.stringify(data),
             success: function(response) {
                 if (response.success) {
-                    $('#surgeon').val(response.data.surgeon);
-                    $('#anesthesi').val(response.data.anesthesi);
-                    $('#ot_room_charge').val(response.data.ot_room_charge);
+                    $('#surgeon').val(formatNumber(response.data.surgeon));
+                    $('#anesthesi').val(formatNumber(response.data.anesthesi));
+                    $('#ot_room_charge').val(formatNumber(response.data.ot_room_charge));
                     calculateTotal();
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error calculating surgery fees:', error);
             }
         });
     }
@@ -565,7 +576,7 @@ $(document).ready(function() {
                 </div>
                 <div class="col-md-7">
                     <label class="form-label">Tindakan Operasi ${isFirst ? '<span class="text-danger">*</span>' : ''}</label>
-                    <select class="form-select operation-select" name="tabel_operasi${operationCounter}" id="tabel_operasi${operationCounter}" ${isFirst ? 'required' : ''}>
+                    <select class="form-select operation-select" name="operations[${operationCounter - 1}][kode]" id="operation_kode_${operationCounter}" ${isFirst ? 'required' : ''}>
                         <option value="">-- Pilih Tindakan --</option>
                         <optgroup label="📋 Tabel Operasi Standard">
                             ${operationsData.map(op => `
@@ -588,7 +599,7 @@ $(document).ready(function() {
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Persentase</label>
-                    <select class="form-select percentage-select" name="persentase_operasi${operationCounter}" id="persentase_operasi${operationCounter}">
+                    <select class="form-select percentage-select" name="operations[${operationCounter - 1}][persentase]" id="operation_persentase_${operationCounter}">
                         <option value="20">20%</option>
                         <option value="30">30%</option>
                         <option value="35">35%</option>
@@ -609,7 +620,7 @@ $(document).ready(function() {
         $('#operationTableContainer').append(rowHtml);
         
         // Initialize Select2 for the new row
-        $(`#tabel_operasi${operationCounter}`).select2({
+        $(`#operation_kode_${operationCounter}`).select2({
             theme: 'bootstrap-5',
             placeholder: '-- Cari dan Pilih Tindakan Operasi --',
             allowClear: true,
@@ -627,8 +638,9 @@ $(document).ready(function() {
             }
         });
 
-        // Update row numbers
+        // Update row numbers and enable/disable delete buttons
         updateRowNumbers();
+        updateRemoveButtons();
     }
 
     // Remove operation row
@@ -636,14 +648,35 @@ $(document).ready(function() {
         const rowId = $(this).data('row-id');
         $(`#operation_row_${rowId}`).remove();
         updateRowNumbers();
+        updateRemoveButtons();
         calculateSurgeryFees();
     });
 
     function updateRowNumbers() {
         let rowNumber = 1;
+        let arrayIndex = 0;
         $('.operation-row').each(function() {
             $(this).find('input[readonly]').val(rowNumber);
+            
+            // Update form field names to maintain correct array indices
+            $(this).find('select[name^="operations"]').each(function() {
+                const fieldType = $(this).attr('name').includes('[kode]') ? 'kode' : 'persentase';
+                $(this).attr('name', `operations[${arrayIndex}][${fieldType}]`);
+            });
+            
             rowNumber++;
+            arrayIndex++;
+        });
+    }
+
+    function updateRemoveButtons() {
+        const rowCount = $('.operation-row').length;
+        $('.remove-operation').each(function() {
+            if (rowCount <= 1) {
+                $(this).prop('disabled', true);
+            } else {
+                $(this).prop('disabled', false);
+            }
         });
     }
 

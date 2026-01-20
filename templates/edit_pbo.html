@@ -101,35 +101,19 @@
             </div>
         </div>
 
-        <!-- Operation Tables -->
+        <!-- Operation Tables (Dynamic) -->
         <div class="card mb-4">
-            <div class="card-header bg-light">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-table"></i> Tabel Operasi</h5>
+                <button type="button" class="btn btn-success btn-sm" id="addOperationBtn">
+                    <i class="bi bi-plus-circle"></i> Tambah Baris
+                </button>
             </div>
             <div class="card-body">
-                {% for i in range(1, 5) %}
-                <div class="row mb-3">
-                    <div class="col-md-8">
-                        <label class="form-label">Tabel Operasi {{ i }}{% if i == 1 %} <span class="text-danger">*</span>{% endif %}</label>
-                        <select class="form-select operation-select select2-operation" name="tabel_operasi{{ i }}" id="tabel_operasi{{ i }}"{% if i == 1 %} required{% endif %}>
-                            <option value="">-- Pilih Tindakan --</option>
-                            {% for op in operations %}
-                            <option value="{{ op.kode }} - {{ op.nama_tindakan }}" {% if pbo['tabel_operasi' ~ i] == op.kode ~ ' - ' ~ op.nama_tindakan %}selected{% endif %}>
-                                {{ op.kode }} - {{ op.nama_tindakan }} (Dokter: {{ op.biaya_dokter|currency }}, RS: {{ op.biaya_rs|currency }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Persentase Operasi {{ i }}</label>
-                        <select class="form-select percentage-select" name="persentase_operasi{{ i }}" id="persentase_operasi{{ i }}">
-                            <option value="100" {% if (pbo['persentase_operasi' ~ i] * 100)|int == 100 %}selected{% endif %}>100%</option>
-                            <option value="50" {% if (pbo['persentase_operasi' ~ i] * 100)|int == 50 %}selected{% endif %}>50%</option>
-                        </select>
-                    </div>
+                <div id="operationTableContainer">
+                    <!-- Dynamic operation rows will be added here -->
                 </div>
-                {% endfor %}
-                <div class="text-end">
+                <div class="text-end mt-3">
                     <button type="button" class="btn btn-primary" id="calculateSurgeryBtn">
                         <i class="bi bi-calculator"></i> Hitung Biaya Operasi
                     </button>
@@ -259,6 +243,13 @@
 
 <!-- Data for dynamic operations -->
 <script>
+// Global data from backend
+let operationsData = {{ operations|tojson|safe }};
+let tindakanItemsData = {{ tindakan_items|tojson|safe }};
+
+// Existing PBO operations (from to_dict)
+let existingOperations = {{ pbo.operations|tojson|safe if pbo.operations else '[]'|safe }};
+
 // Mapping kelas ke harga kamar (berdasarkan room types)
 const kelasToRoomPrice = {
     'BASIC': 350000,           // Basic
@@ -310,52 +301,218 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-calculate room rate when class changes and filter operasi items
-    $('#kelas').change(function() {
-        const kelas = $(this).val();
-        console.log('Kelas berubah ke:', kelas);
-        
-        // Update room rate using client-side mapping
-        $('#tarif_kamar').val(kelasToRoomPrice[kelas] || 0);
-        calculateTotal();
-        
-        // Filter operasi based on selected class
-        if (kelas) {
-            console.log('Fetching operasi untuk kelas:', kelas);
-            $.ajax({
-                url: '/api/get-tindakan-by-kelas',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ kelas: kelas }),
-                success: function(response) {
-                    if (response.success) {
-                        console.log('Response success, operasi count:', response.operations.length);
-                        // Update all operation dropdowns with filtered operations
-                        updateOperationDropdowns(response.operations);
-                        console.log('Filtered operations for kelas:', kelas, '- Found:', response.operations.length);
-                    } else {
-                        console.log('Response failed');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching filtered operations:', error);
-                    console.error('Status:', status);
-                    console.error('Response:', xhr.responseText);
-                }
+    
+    // ===== DYNAMIC OPERATION TABLE FUNCTIONALITY =====
+    let operationCounter = 0;
+
+    // Add first row on page load
+    addOperationRow();
+    
+    // If kelas is already selected, trigger change to filter
+    const initialKelas = $('#kelas').val();
+    if (initialKelas) {
+        console.log('Triggering change for initial kelas');
+        $('#kelas').trigger('change');
+    }
+    
+    // Function to populate existing operations
+    function populateExistingOperations() {
+        if (existingOperations && existingOperations.length > 0) {
+            // Clear container first
+            $('#operationTableContainer').empty();
+            operationCounter = 0;
+            
+            // Add each existing operation
+            existingOperations.forEach(function(op) {
+                addOperationRow(op.kode, op.persentase);
             });
+            
+            // Calculate initial surgeon fee
+            setTimeout(function() {
+                calculateSurgeryFees();
+            }, 100);
         }
+    }
+
+    // Add operation row button
+    $('#addOperationBtn').click(function() {
+        addOperationRow();
+    });
+
+    function addOperationRow(preselectedKode, preselectedPersentase) {
+        operationCounter++;
+        const isFirst = operationCounter === 1;
+        
+        const rowHtml = `
+            <div class="row mb-3 operation-row" id="operation_row_${operationCounter}" data-row-id="${operationCounter}">
+                <div class="col-md-1">
+                    <label class="form-label">No.</label>
+                    <input type="text" class="form-control text-center" value="${operationCounter}" readonly>
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label">Tindakan Operasi ${isFirst ? '<span class="text-danger">*</span>' : ''}</label>
+                    <select class="form-select operation-select" name="operations[${operationCounter - 1}][kode]" id="operation_kode_${operationCounter}" ${isFirst ? 'required' : ''}>
+                        <option value="">-- Pilih Tindakan --</option>
+                        <optgroup label="📋 Tabel Operasi Standard">
+                            ${operationsData.map(op => `
+                                <option value="${op.kode} - ${op.nama_tindakan}" ${preselectedKode && preselectedKode === op.kode ? 'selected' : ''}>
+                                    ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                                </option>
+                            `).join('')}
+                        </optgroup>
+                        <optgroup label="🏥 Data Tindakan Terbaru">
+                            ${tindakanItemsData.map(item => `
+                                <option value="TINDAKAN-${item.id} - ${item.nama_tindakan}">
+                                    ${item.nama_tindakan} - ${item.kelas} (${item.kategory}) - Rp ${formatNumber(item.amount)}
+                                </option>
+                            `).join('')}
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Persentase</label>
+                    <select class="form-select percentage-select" name="operations[${operationCounter - 1}][persentase]" id="operation_persentase_${operationCounter}">
+                        <option value="20" ${preselectedPersentase && parseInt(preselectedPersentase * 100) === 20 ? 'selected' : ''}>20%</option>
+                        <option value="30" ${preselectedPersentase && parseInt(preselectedPersentase * 100) === 30 ? 'selected' : ''}>30%</option>
+                        <option value="35" ${preselectedPersentase && parseInt(preselectedPersentase * 100) === 35 ? 'selected' : ''}>35%</option>
+                        <option value="50" ${preselectedPersentase && parseInt(preselectedPersentase * 100) === 50 ? 'selected' : ''}>50%</option>
+                        <option value="75" ${preselectedPersentase && parseInt(preselectedPersentase * 100) === 75 ? 'selected' : ''}>75%</option>
+                        <option value="100" ${!preselectedPersentase || parseInt(preselectedPersentase * 100) === 100 ? 'selected' : ''}>100%</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-danger btn-sm w-100 remove-operation" data-row-id="${operationCounter}" ${isFirst ? 'disabled' : ''}>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        $('#operationTableContainer').append(rowHtml);
+        
+        // Initialize Select2 for the new row
+        $(`#operation_kode_${operationCounter}`).select2({
+            theme: 'bootstrap-5',
+            placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "Tindakan tidak ditemukan";
+                },
+                searching: function() {
+                    return "Mencari...";
+                },
+                inputTooShort: function() {
+                    return "Ketik untuk mencari tindakan...";
+                }
+            }
+        });
+
+        // Update row numbers and buttons
+        updateRowNumbers();
+        updateRemoveButtons();
+    }
+
+    // Remove operation row
+    $(document).on('click', '.remove-operation', function() {
+        const rowId = $(this).data('row-id');
+        $(`#operation_row_${rowId}`).remove();
+        updateRowNumbers();
+        updateRemoveButtons();
+        calculateSurgeryFees();
+    });
+
+    function updateRowNumbers() {
+        let rowNumber = 1;
+        let arrayIndex = 0;
+        $('.operation-row').each(function() {
+            $(this).find('input[readonly]').val(rowNumber);
+            
+            // Update form field names to maintain correct array indices
+            $(this).find('select[name^="operations"]').each(function() {
+                const fieldType = $(this).attr('name').includes('[kode]') ? 'kode' : 'persentase';
+                $(this).attr('name', `operations[${arrayIndex}][${fieldType}]`);
+            });
+            
+            rowNumber++;
+            arrayIndex++;
+        });
+    }
+
+    function updateRemoveButtons() {
+        const rowCount = $('.operation-row').length;
+        $('.remove-operation').each(function() {
+            if (rowCount <= 1) {
+                $(this).prop('disabled', true);
+            } else {
+                $(this).prop('disabled', false);
+            }
+        });
+    }
+
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('id-ID');
+    }
+
+    // ===== CALCULATION FUNCTIONS =====
+
+    function calculateSurgeryFees() {
+        // Collect operations from current form
+        const operations = [];
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const kode = $(`#operation_kode_${rowId}`).val();
+            const persentase = parseFloat($(`#operation_persentase_${rowId}`).val() || 100);
+            
+            if (kode && kode.trim()) {
+                operations.push({
+                    kode: kode.split(' - ')[0].trim(),  // Extract kode dari format "kode - nama"
+                    persentase: persentase > 1 ? persentase / 100 : persentase  // Convert to decimal if needed
+                });
+            }
+        });
+        
+        const data = {
+            sifat_operasi: $('#sifat_operasi').val(),
+            operations: operations
+        };
+
+        $.ajax({
+            url: '/api/calculate-surgery-fees',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    $('#surgeon').val(formatNumber(response.data.surgeon));
+                    $('#anesthesi').val(formatNumber(response.data.anesthesi));
+                    $('#ot_room_charge').val(formatNumber(response.data.ot_room_charge));
+                    calculateTotal();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error calculating surgery fees:', error);
+            }
+        });
+    }
+
+    // Calculate surgery fees - use event delegation for dynamically added elements
+    $('#calculateSurgeryBtn').click(function() {
+        calculateSurgeryFees();
     });
     
-    // Function to update all operation dropdowns
-    function updateOperationDropdowns(filteredOperations) {
-        for (let i = 1; i <= 4; i++) {
-            const selectElement = $(`#tabel_operasi${i}`);
-            if (selectElement.length === 0) continue;
-            
-            const currentValue = selectElement.val();
-            
-            // Rebuild options
-            let optionsHtml = '<option value="">-- Pilih Tindakan --</option>';
+    // Use event delegation for dynamically added operation and percentage selects
+    $(document).on('change', '.operation-select, .percentage-select, #sifat_operasi', function() {
+        calculateSurgeryFees();
+    });
+
+    // Initialize existing operations if available
+    if (existingOperations && existingOperations.length > 0) {
+        populateExistingOperations();
+    }
+
             
             // Add filtered operations
             if (filteredOperations && filteredOperations.length > 0) {

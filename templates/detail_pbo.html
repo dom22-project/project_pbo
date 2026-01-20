@@ -137,15 +137,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for i in range(1, 5) %}
-                        {% if pbo['tabel_operasi' ~ i] %}
-                        <tr>
-                            <td>{{ i }}</td>
-                            <td>{{ pbo['tabel_operasi' ~ i] }}</td>
-                            <td>{{ pbo['persentase_operasi' ~ i]|percentage }}</td>
-                        </tr>
+                        {% if pbo['operations'] %}
+                            {# Display dynamic operations if available #}
+                            {% for op in pbo['operations'] %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ op.kode }}</td>
+                                <td>{{ (op.persentase|float * 100)|int }}%</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            {# Fallback to legacy format #}
+                            {% for i in range(1, 5) %}
+                            {% if pbo['tabel_operasi' ~ i] %}
+                            <tr>
+                                <td>{{ i }}</td>
+                                <td>{{ pbo['tabel_operasi' ~ i] }}</td>
+                                <td>{{ pbo['persentase_operasi' ~ i]|percentage }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
                         {% endif %}
-                        {% endfor %}
                     </tbody>
                 </table>
             </div>

@@ -54,6 +54,36 @@ class PBOData(db.Model):
         return f'<PBOData {self.id}>'
     
     def to_dict(self):
+        # Parse operations JSON if stored in tabel_operasi1
+        operations = []
+        try:
+            if self.tabel_operasi1:
+                # Try parsing as JSON for dynamic operations
+                import json
+                operations = json.loads(self.tabel_operasi1)
+        except (json.JSONDecodeError, TypeError):
+            # Fall back to legacy format
+            if self.tabel_operasi1:
+                operations.append({
+                    'kode': self.tabel_operasi1,
+                    'persentase': self.persentase_operasi1
+                })
+            if self.tabel_operasi2:
+                operations.append({
+                    'kode': self.tabel_operasi2,
+                    'persentase': self.persentase_operasi2
+                })
+            if self.tabel_operasi3:
+                operations.append({
+                    'kode': self.tabel_operasi3,
+                    'persentase': self.persentase_operasi3
+                })
+            if self.tabel_operasi4:
+                operations.append({
+                    'kode': self.tabel_operasi4,
+                    'persentase': self.persentase_operasi4
+                })
+        
         return {
             'id': self.id,
             'diagnosa': self.diagnosa,
@@ -61,6 +91,7 @@ class PBOData(db.Model):
             'sifat_operasi': self.sifat_operasi,
             'nama_dokter': self.nama_dokter,
             'kelas': self.kelas,
+            'operations': operations,  # New field with parsed/converted operations
             'tabel_operasi1': self.tabel_operasi1,
             'tabel_operasi2': self.tabel_operasi2,
             'tabel_operasi3': self.tabel_operasi3,

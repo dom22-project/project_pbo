@@ -438,6 +438,37 @@ def input_pbo():
                 except (ValueError, TypeError):
                     return default / 100
             
+            # Parse dynamic operations from form
+            operations_list = []
+            op_index = 0
+            while True:
+                kode_key = f'operations[{op_index}][kode]'
+                persentase_key = f'operations[{op_index}][persentase]'
+                
+                if kode_key not in request.form:
+                    break
+                
+                kode = request.form.get(kode_key, '').strip()
+                if kode:
+                    persentase = safe_percentage_convert(request.form.get(persentase_key, 100))
+                    operations_list.append({
+                        'kode': kode,
+                        'persentase': persentase
+                    })
+                
+                op_index += 1
+            
+            # Backward compatibility: if no operations in new format, try old format
+            if not operations_list:
+                for i in range(1, 5):
+                    kode = request.form.get(f'tabel_operasi{i}', '').strip()
+                    if kode:
+                        persentase = safe_percentage_convert(request.form.get(f'persentase_operasi{i}', 100))
+                        operations_list.append({
+                            'kode': kode,
+                            'persentase': persentase
+                        })
+            
             # Get form data
             form_data = {
                 'diagnosa': request.form.get('diagnosa', ''),
@@ -445,14 +476,7 @@ def input_pbo():
                 'sifat_operasi': request.form.get('sifat_operasi', 'Elektif / Tentative'),
                 'nama_dokter': request.form.get('nama_dokter', ''),
                 'kelas': request.form.get('kelas', ''),
-                'tabel_operasi1': request.form.get('tabel_operasi1', ''),
-                'tabel_operasi2': request.form.get('tabel_operasi2', ''),
-                'tabel_operasi3': request.form.get('tabel_operasi3', ''),
-                'tabel_operasi4': request.form.get('tabel_operasi4', ''),
-                'persentase_operasi1': safe_percentage_convert(request.form.get('persentase_operasi1', 100)),
-                'persentase_operasi2': safe_percentage_convert(request.form.get('persentase_operasi2', 100)),
-                'persentase_operasi3': safe_percentage_convert(request.form.get('persentase_operasi3', 100)),
-                'persentase_operasi4': safe_percentage_convert(request.form.get('persentase_operasi4', 100)),
+                'operations': operations_list,  # Store as JSON
                 'konsultasi_pre_tindakan': float(request.form.get('konsultasi_pre_tindakan', 0)),
                 'diagnostic_pre_tindakan': float(request.form.get('diagnostic_pre_tindakan', 0)),
                 'surgeon': float(request.form.get('surgeon', 0)),
@@ -482,21 +506,25 @@ def input_pbo():
                     flash(error, 'danger')
                 return redirect(url_for('input_pbo'))
             
-            # Prepare data tuple for database
+            # Convert operations list to JSON string for storage
+            import json
+            operations_json = json.dumps(form_data['operations'])
+            
+            # Prepare data tuple for database - use JSON for operations
             data = (
                 form_data['diagnosa'],
                 form_data['nama_operasi'],
                 form_data['sifat_operasi'],
                 form_data['nama_dokter'],
                 form_data['kelas'],
-                form_data['tabel_operasi1'],
-                form_data['tabel_operasi2'],
-                form_data['tabel_operasi3'],
-                form_data['tabel_operasi4'],
-                form_data['persentase_operasi1'],
-                form_data['persentase_operasi2'],
-                form_data['persentase_operasi3'],
-                form_data['persentase_operasi4'],
+                operations_json,  # Store operations as JSON
+                '',  # tabel_operasi2 - deprecated
+                '',  # tabel_operasi3 - deprecated
+                '',  # tabel_operasi4 - deprecated
+                0,   # persentase_operasi1 - deprecated
+                0,   # persentase_operasi2 - deprecated
+                0,   # persentase_operasi3 - deprecated
+                0,   # persentase_operasi4 - deprecated
                 form_data['konsultasi_pre_tindakan'],
                 form_data['diagnostic_pre_tindakan'],
                 form_data['surgeon'],
@@ -531,7 +559,6 @@ def input_pbo():
     # GET request - show form
     operations = db_helper.get_all_operations()
     doctors = db_helper.get_all_doctors()
-    print(operations)
     tindakan_items = db_helper.get_all_tindakan_items()
     
     return render_template('input_pbo.html', 
@@ -595,6 +622,37 @@ def edit_pbo(pbo_id):
                 except (ValueError, TypeError):
                     return default / 100
             
+            # Parse dynamic operations from form
+            operations_list = []
+            op_index = 0
+            while True:
+                kode_key = f'operations[{op_index}][kode]'
+                persentase_key = f'operations[{op_index}][persentase]'
+                
+                if kode_key not in request.form:
+                    break
+                
+                kode = request.form.get(kode_key, '').strip()
+                if kode:
+                    persentase = safe_percentage_convert(request.form.get(persentase_key, 100))
+                    operations_list.append({
+                        'kode': kode,
+                        'persentase': persentase
+                    })
+                
+                op_index += 1
+            
+            # Backward compatibility: if no operations in new format, try old format
+            if not operations_list:
+                for i in range(1, 5):
+                    kode = request.form.get(f'tabel_operasi{i}', '').strip()
+                    if kode:
+                        persentase = safe_percentage_convert(request.form.get(f'persentase_operasi{i}', 100))
+                        operations_list.append({
+                            'kode': kode,
+                            'persentase': persentase
+                        })
+            
             # Get form data (same as input_pbo)
             form_data = {
                 'diagnosa': request.form.get('diagnosa', ''),
@@ -602,14 +660,7 @@ def edit_pbo(pbo_id):
                 'sifat_operasi': request.form.get('sifat_operasi', 'Elektif / Tentative'),
                 'nama_dokter': request.form.get('nama_dokter', ''),
                 'kelas': request.form.get('kelas', ''),
-                'tabel_operasi1': request.form.get('tabel_operasi1', ''),
-                'tabel_operasi2': request.form.get('tabel_operasi2', ''),
-                'tabel_operasi3': request.form.get('tabel_operasi3', ''),
-                'tabel_operasi4': request.form.get('tabel_operasi4', ''),
-                'persentase_operasi1': safe_percentage_convert(request.form.get('persentase_operasi1', 100)),
-                'persentase_operasi2': safe_percentage_convert(request.form.get('persentase_operasi2', 100)),
-                'persentase_operasi3': safe_percentage_convert(request.form.get('persentase_operasi3', 100)),
-                'persentase_operasi4': safe_percentage_convert(request.form.get('persentase_operasi4', 100)),
+                'operations': operations_list,
                 'konsultasi_pre_tindakan': float(request.form.get('konsultasi_pre_tindakan', 0)),
                 'diagnostic_pre_tindakan': float(request.form.get('diagnostic_pre_tindakan', 0)),
                 'surgeon': float(request.form.get('surgeon', 0)),
@@ -631,13 +682,16 @@ def edit_pbo(pbo_id):
                 'perusahaan_asuransi': request.form.get('perusahaan_asuransi', '')
             }
             
+            # Convert operations list to JSON string for storage
+            import json
+            operations_json = json.dumps(form_data['operations'])
+            
             # Prepare data tuple
             data = (
                 form_data['diagnosa'], form_data['nama_operasi'], form_data['sifat_operasi'],
-                form_data['nama_dokter'], form_data['kelas'], form_data['tabel_operasi1'],
-                form_data['tabel_operasi2'], form_data['tabel_operasi3'], form_data['tabel_operasi4'],
-                form_data['persentase_operasi1'], form_data['persentase_operasi2'],
-                form_data['persentase_operasi3'], form_data['persentase_operasi4'],
+                form_data['nama_dokter'], form_data['kelas'], operations_json,
+                '', '', '',
+                0, 0, 0, 0,
                 form_data['konsultasi_pre_tindakan'], form_data['diagnostic_pre_tindakan'],
                 form_data['surgeon'], form_data['anesthesi'], form_data['ot_room_charge'],
                 form_data['recovery_room_charge'], form_data['alat'], form_data['diagnostic'],
@@ -849,20 +903,62 @@ def restore_version(version_id):
         return redirect(url_for('search_pbo'))
 
 # API Endpoints for AJAX
-@app.route('/api/calculate-surgery-fees', methods=['POST'])
+@app.route('/api/get-operation-details', methods=['POST'])
+def api_get_operation_details():
+    """Get operation details by kode"""
+    try:
+        data = request.get_json()
+        kode = data.get('kode', '')
+        
+        if not kode:
+            return jsonify({
+                'success': False,
+                'error': 'Kode operasi tidak boleh kosong'
+            }), 400
+        
+        operation = db_helper.get_operation_by_code(kode)
+        
+        if not operation:
+            return jsonify({
+                'success': False,
+                'error': f'Operasi dengan kode {kode} tidak ditemukan'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': operation
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 def api_calculate_surgery_fees():
-    """API endpoint to calculate surgery fees"""
+    """API endpoint to calculate surgery fees from dynamic operations"""
     try:
         data = request.get_json()
         
+        # Support both old format (tabel_operasi1-4) and new dynamic format (operations array)
         operations_data = []
-        for i in range(1, 5):
-            kode = data.get(f'tabel_operasi{i}')
-            if kode:
-                operations_data.append({
-                    'kode': kode,
-                    'persentase': float(data.get(f'persentase_operasi{i}', 100))
-                })
+        
+        # Check for new dynamic format (operations array)
+        if 'operations' in data and isinstance(data['operations'], list):
+            for op in data['operations']:
+                if op.get('kode'):
+                    operations_data.append({
+                        'kode': op.get('kode'),
+                        'persentase': float(op.get('persentase', 100))
+                    })
+        else:
+            # Fall back to old format for backward compatibility
+            for i in range(1, 5):
+                kode = data.get(f'tabel_operasi{i}')
+                if kode:
+                    operations_data.append({
+                        'kode': kode,
+                        'persentase': float(data.get(f'persentase_operasi{i}', 100))
+                    })
         
         sifat_operasi = data.get('sifat_operasi', 'Elektif / Tentative')
         

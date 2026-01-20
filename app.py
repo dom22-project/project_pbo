@@ -975,6 +975,65 @@ def api_calculate_surgery_fees():
             'error': str(e)
         }), 400
 
+@app.route('/api/get-operation-price', methods=['POST'])
+def api_get_operation_price():
+    """API endpoint to get operation price by operation code"""
+    try:
+        data = request.get_json()
+        kode = data.get('kode', '').strip()
+        
+        if not kode:
+            return jsonify({
+                'success': False,
+                'error': 'Operation code is required'
+            }), 400
+        
+        # Extract operation code (remove description if present)
+        # Handle format like "4199999994 - DOCTORS PROCEDURE TABLE 3"
+        kode = kode.split(' - ')[0].strip()
+        
+        # Try to get from OperationTable first
+        operation = db_helper.get_operation_by_code(kode)
+        
+        if operation:
+            return jsonify({
+                'success': True,
+                'type': 'operation',
+                'price': operation['biaya_dokter'],
+                'biaya_dokter': operation['biaya_dokter'],
+                'biaya_rs': operation['biaya_rs'],
+                'nama_tindakan': operation.get('nama_tindakan', '')
+            })
+        
+        # If not found in OperationTable, check TindakanItem
+        # Format: "TINDAKAN-{id} - {nama_tindakan}"
+        if kode.startswith('TINDAKAN-'):
+            tindakan_id = kode.replace('TINDAKAN-', '').strip()
+            try:
+                tindakan_id = int(tindakan_id)
+                tindakan = db_helper.get_tindakan_by_id(tindakan_id)
+                if tindakan:
+                    return jsonify({
+                        'success': True,
+                        'type': 'tindakan',
+                        'price': tindakan['amount'],
+                        'amount': tindakan['amount'],
+                        'nama_tindakan': tindakan.get('nama_tindakan', '')
+                    })
+            except (ValueError, TypeError):
+                pass
+        
+        return jsonify({
+            'success': False,
+            'error': f'Operation with code {kode} not found'
+        }), 404
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
 @app.route('/api/get-room-rate', methods=['POST'])
 def api_get_room_rate():
     """API endpoint to get room rate"""

@@ -128,7 +128,7 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Surgeon</label>
-                        <input type="number" class="form-control cost-input" name="surgeon" id="surgeon" value="0" placeholder="0" step="1000" min="0">
+                        <input type="text" class="form-control cost-input" name="surgeon" id="surgeon" value="0">
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Anesthesi</label>
@@ -257,7 +257,8 @@ Tidak berlaku apabila ada perpindahan kelas perawatan (biaya mengikuti kelas ter
 
 <!-- Data for dynamic operations -->
 <script>
-// Global data from backend
+/** @type {Object} */
+// @ts-nocheck
 let operationsData = {{ operations|tojson|safe }};
 
 // Mapping kelas ke harga kamar (berdasarkan room types)
@@ -363,7 +364,9 @@ $(document).ready(function() {
         } else {
             // If no class selected, show all items
             console.log('Tidak ada kelas dipilih, gunakan semua operasi');
+            // @ts-ignore
             tindakanItemsData = {{ tindakan_items|tojson|safe }};
+            // @ts-ignore
             operationsData = {{ operations|tojson|safe }};
             updateAllOperationDropdowns();
         }
@@ -476,6 +479,88 @@ $(document).ready(function() {
     $(document).on('change', '.operation-select, .percentage-select, #sifat_operasi', function() {
         calculateSurgeryFees();
     });
+    
+    // New: Fetch and update surgeon and anesthesi price when operation is selected
+    // This now sums ALL selected operations (not just one)
+    $(document).on('change', '.operation-select, .percentage-select', function() {
+        calculateTotalSurgeryFees();
+    });
+    
+    // Function to calculate total surgery fees from ALL selected operations
+    function calculateTotalSurgeryFees() {
+        let totalSurgeonFee = 0;
+        let totalAnesthesiFee = 0;
+        let operationCount = 0;
+        let pendingRequests = 0;
+        
+        // Iterate through all operation rows
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const selectedValue = $(`#operation_kode_${rowId}`).val();
+            const persentase = parseFloat($(`#operation_persentase_${rowId}`).val() || 100);
+            const percentage = persentase > 1 ? persentase / 100 : persentase;
+            
+            if (selectedValue && selectedValue.trim()) {
+                operationCount++;
+                const kode = selectedValue.split(' - ')[0].trim();
+                
+                pendingRequests++;
+                
+                // Fetch operation price from API
+                $.ajax({
+                    url: '/api/get-operation-price',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ kode: kode }),
+                    success: function(response) {
+                        if (response.success) {
+                            // Add this operation's fees to totals
+                            const surgeonFee = (response.biaya_dokter || 0) * percentage;
+                            const anesthesiFee = (response.biaya_rs || 0) * percentage;
+                            
+                            totalSurgeonFee += surgeonFee;
+                            totalAnesthesiFee += anesthesiFee;
+                            
+                            console.log(`Row ${rowId}: Surgeon=${surgeonFee}, Anesthesi=${anesthesiFee}`);
+                        }
+                        
+                        pendingRequests--;
+                        
+                        // When all requests are done, update the fields
+                        if (pendingRequests === 0) {
+                            console.log(`Total from ${operationCount} operations - Surgeon: ${totalSurgeonFee}, Anesthesi: ${totalAnesthesiFee}`);
+                            
+                            // Update surgeon field with total
+                            $('#surgeon').val(formatNumber(totalSurgeonFee));
+                            
+                            // Update anesthesi field with total
+                            $('#anesthesi').val(formatNumber(totalAnesthesiFee));
+                            
+                            calculateTotal();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(`Error fetching operation price for row ${rowId}:`, error);
+                        pendingRequests--;
+                        
+                        // Still update if this was the last request
+                        if (pendingRequests === 0) {
+                            $('#surgeon').val(formatNumber(totalSurgeonFee));
+                            $('#anesthesi').val(formatNumber(totalAnesthesiFee));
+                            calculateTotal();
+                        }
+                    }
+                });
+            }
+        });
+        
+        // If no operations selected, clear the fields
+        if (operationCount === 0) {
+            $('#surgeon').val(formatNumber(0));
+            $('#anesthesi').val(formatNumber(0));
+            calculateTotal();
+        }
+    }
 
     function calculateSurgeryFees() {
         // Collect operations from current form

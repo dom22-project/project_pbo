@@ -1,6 +1,18 @@
 {
-"window.zoomLevel": 01,
-"editor.fontSize": 18,
-"workbench.colorTheme": "Noctis Minimus"
-"workbench.iconTheme": "material-icon-theme"
+  "window.zoomLevel": 0,
+  "editor.fontSize": 18,
+  "workbench.colorTheme": "Noctis Minimus",
+  "workbench.iconTheme": "material-icon-theme",
+  "js/ts.implicitProjectConfig.checkJs": false,
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "files.exclude": {
+    "**/*.pyc": true,
+    "**/__pycache__": true,
+    "**/node_modules": true
+  },
+  "html.validate.scripts": false,
+  "javascript.validate.enable": false,
+  "python.linting.enabled": true
 }

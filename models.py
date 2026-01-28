@@ -7,7 +7,8 @@ class Database:
     """Database helper class for PBO application using SQLAlchemy ORM"""
     
     def __init__(self):
-        self.db_path = Config.DATABASE_PATH
+        # Database configuration is now handled in Config class
+        pass
     
     # PBO Data Operations
     def create_pbo(self, data):

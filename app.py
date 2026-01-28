@@ -23,43 +23,49 @@ db_helper = Database()
 
 # Create tables within app context dan setup default data
 with app.app_context():
-    # Create all tables
-    db.create_all()
+    try:
+        # Create all tables
+        db.create_all()
+        
+        # Add default users if none exist
+        if User.query.count() == 0:
+            default_users = [
+                User(username='admin', password='admin123', role='admin'),
+                User(username='user', password='user123', role='user'),
+            ]
+            db.session.add_all(default_users)
+            db.session.commit()
+        
+        # Add default operations if none exist
+        from models_sqlalchemy import OperationTable, RoomType
+        if OperationTable.query.count() == 0:
+            default_operations = [
+                OperationTable(kode='4199999994', nama_tindakan='DOCTORS PROCEDURE TABLE 3', kelas='ODC', biaya_dokter=4934000, biaya_rs=0, total_biaya=4934000),
+                OperationTable(kode='4199999995', nama_tindakan='DOCTORS PROCEDURE TABLE 1', kelas='ODC', biaya_dokter=1125000, biaya_rs=0, total_biaya=1125000),
+                OperationTable(kode='4199999996', nama_tindakan='DOCTORS PROCEDURE TABLE 2', kelas='ODC', biaya_dokter=2368000, biaya_rs=0, total_biaya=2368000),
+            ]
+            db.session.add_all(default_operations)
+            db.session.commit()
     
-    # Add default users if none exist
-    if User.query.count() == 0:
-        default_users = [
-            User(username='admin', password='admin123', role='admin'),
-            User(username='user', password='user123', role='user'),
-        ]
-        db.session.add_all(default_users)
-        db.session.commit()
-    
-    # Add default operations if none exist
-    from models_sqlalchemy import OperationTable, RoomType
-    if OperationTable.query.count() == 0:
-        default_operations = [
-            OperationTable(kode='4199999994', nama_tindakan='DOCTORS PROCEDURE TABLE 3', kelas='ODC', biaya_dokter=4934000, biaya_rs=0, total_biaya=4934000),
-            OperationTable(kode='4199999995', nama_tindakan='DOCTORS PROCEDURE TABLE 1', kelas='ODC', biaya_dokter=1125000, biaya_rs=0, total_biaya=1125000),
-            OperationTable(kode='4199999996', nama_tindakan='DOCTORS PROCEDURE TABLE 2', kelas='ODC', biaya_dokter=2368000, biaya_rs=0, total_biaya=2368000),
-        ]
-        db.session.add_all(default_operations)
-        db.session.commit()
-    
-    # Add default room types if none exist
-    if RoomType.query.count() == 0:
-        default_room_types = [
-            RoomType(nama_kamar='Basic', harga_per_hari=350000),
-            RoomType(nama_kamar='Standard', harga_per_hari=750000),
-            RoomType(nama_kamar='Deluxe', harga_per_hari=950000),
-            RoomType(nama_kamar='VIP', harga_per_hari=1900000),
-            RoomType(nama_kamar='VVIP', harga_per_hari=2000000),
-            RoomType(nama_kamar='Suite', harga_per_hari=5000000),
-            RoomType(nama_kamar='Presidential Suite', harga_per_hari=7500000),
-        ]
-        db.session.add_all(default_room_types)
-        db.session.commit()
-        print("[INIT] Default room types created")
+        # Add default room types if none exist
+        if RoomType.query.count() == 0:
+            default_room_types = [
+                RoomType(nama_kamar='Basic', harga_per_hari=350000),
+                RoomType(nama_kamar='Standard', harga_per_hari=750000),
+                RoomType(nama_kamar='Deluxe', harga_per_hari=950000),
+                RoomType(nama_kamar='VIP', harga_per_hari=1900000),
+                RoomType(nama_kamar='VVIP', harga_per_hari=2000000),
+                RoomType(nama_kamar='Suite', harga_per_hari=5000000),
+                RoomType(nama_kamar='Presidential Suite', harga_per_hari=7500000),
+            ]
+            db.session.add_all(default_room_types)
+            db.session.commit()
+            print("[INIT] Default room types created")
+        print("[INIT] Database connected successfully")
+    except Exception as e:
+        print(f"[WARNING] Database not available: {str(e)}")
+        print("[INFO] Aplikasi akan berjalan tanpa database")
+        print("[INFO] Pastikan MySQL XAMPP sudah dijalankan")
 
 # Helper function to find sheet name (case-insensitive)
 def find_sheet(workbook, sheet_name_pattern):
@@ -72,9 +78,11 @@ def find_sheet(workbook, sheet_name_pattern):
 
 # Helper function to import Excel to database
 def import_excel_to_database(file_path, db_helper):
-    """Import data from Excel file to database"""
+    """Import data from Excel file to database dengan batch processing untuk menghindari timeout"""
+    from config import Config
+    
     try:
-        wb = openpyxl.load_workbook(file_path)
+        wb = openpyxl.load_workbook(file_path, data_only=True)
         stats = {
             'operations_imported': 0,
             'operations_skipped': 0,
@@ -86,8 +94,11 @@ def import_excel_to_database(file_path, db_helper):
             'warnings': []
         }
         
+        batch_size = Config.BATCH_SIZE  # Commit setiap 500 baris
+        
         print(f"[IMPORT] Starting import from {file_path}")
         print(f"[IMPORT] Available sheets: {wb.sheetnames}")
+        print(f"[IMPORT] Batch size: {batch_size} rows")
         
         # Find sheets (case-insensitive)
         operasi_sheet = find_sheet(wb, 'db table operasi')
@@ -105,7 +116,7 @@ def import_excel_to_database(file_path, db_helper):
             print(f"[IMPORT WARNING] {warning_msg}")
             stats['warnings'].append(warning_msg)
         
-        # Import Operasi (Tabel Operasi)
+        # Import Operasi (Tabel Operasi) dengan BATCH PROCESSING
         if operasi_sheet:
             print(f"[IMPORT] Processing sheet: {operasi_sheet}")
             ws = wb[operasi_sheet]
@@ -127,6 +138,7 @@ def import_excel_to_database(file_path, db_helper):
                 rows_with_empty_fee = 0
                 rows_with_existing_kode = 0
                 rows_with_empty_harga = 0
+                batch_operations = []
                 
                 for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                     # Skip rows before and including header
@@ -141,14 +153,13 @@ def import_excel_to_database(file_path, db_helper):
                     
                     try:
                         # Data from Excel: No, Fee Operator, Kelas, Harga Operator, Harga Anestesi
-                        # But sometimes No is empty, so we use Fee Operator name as identifier
                         no = row[0]
                         fee_operator = row[1] if len(row) > 1 else None
                         kelas = row[2] if len(row) > 2 else None
                         harga_operator = row[3] if len(row) > 3 else None
                         harga_anestesi = row[4] if len(row) > 4 else None
                         
-                        # Clean up strings - strip whitespace
+                        # Clean up strings
                         if isinstance(fee_operator, str):
                             fee_operator = fee_operator.strip()
                         if isinstance(kelas, str):
@@ -156,9 +167,9 @@ def import_excel_to_database(file_path, db_helper):
                         
                         # Log first 3 rows for debugging
                         if rows_checked <= 3:
-                            print(f"[IMPORT DEBUG] Row {row_idx}: no={no}, fee='{fee_operator}', kelas='{kelas}', harga_op={harga_operator}, harga_anes={harga_anestesi}")
+                            print(f"[IMPORT DEBUG] Row {row_idx}: no={no}, fee='{fee_operator}', kelas='{kelas}'")
                         
-                        # Validate required fields - need at least kelas (fee_operator can be derived)
+                        # Validate required fields
                         if not kelas:
                             if rows_checked <= 3:
                                 print(f"[IMPORT DEBUG] Row {row_idx} skipped - empty kelas")
@@ -166,49 +177,38 @@ def import_excel_to_database(file_path, db_helper):
                             stats['operations_skipped'] += 1
                             continue
                         
-                        # If fee_operator is empty but kelas exists, use kelas as nama_tindakan
+                        # If fee_operator is empty, derive from kelas
                         if not fee_operator:
                             fee_operator = f"Operasi {kelas}"
                             if rows_checked <= 3:
-                                print(f"[IMPORT DEBUG] Row {row_idx} - fee_operator empty, using '{fee_operator}'")
+                                print(f"[IMPORT DEBUG] Row {row_idx} - using '{fee_operator}'")
                         
-                        # Generate kode from row number if no is empty
+                        # Generate kode
                         try:
                             if no and no != '':
                                 kode = f"{int(no):04d}"
                             else:
-                                # Use row index as fallback, but make it unique by adding count
-                                # Format: row_index_counter (e.g., 0002_1, 0002_2 for duplicates)
                                 kode = f"{row_idx:04d}"
                         except (ValueError, TypeError):
                             kode = f"{row_idx:04d}"
                         
-                        if rows_checked <= 3:
-                            print(f"[IMPORT DEBUG] Row {row_idx} generated kode={kode}")
-                        
-                        # Check if exists with this kode
+                        # Check if exists
                         existing = db_helper.get_operation_by_code(kode)
                         if existing:
-                            # If duplicate, try generating alternate kode
                             counter = 1
                             original_kode = kode
                             while db_helper.get_operation_by_code(kode):
                                 kode = f"{original_kode}_{counter}"
                                 counter += 1
-                                if counter > 100:  # Safety check
+                                if counter > 100:
                                     break
                             
                             if counter > 100:
-                                if rows_checked <= 3:
-                                    print(f"[IMPORT DEBUG] Row {row_idx} - too many duplicates, skipping")
                                 rows_with_existing_kode += 1
                                 stats['operations_skipped'] += 1
                                 continue
-                            
-                            if rows_checked <= 3:
-                                print(f"[IMPORT DEBUG] Row {row_idx} - kode {original_kode} exists, using {kode} instead")
                         
-                        # Safely convert harga to float
+                        # Convert harga
                         try:
                             biaya_dokter = float(harga_operator) if harga_operator else 0
                         except (ValueError, TypeError):
@@ -219,36 +219,46 @@ def import_excel_to_database(file_path, db_helper):
                         except (ValueError, TypeError):
                             biaya_rs = 0
                         
-                        # Log if both harga are empty (kategori header case)
-                        if not harga_operator and not harga_anestesi:
-                            rows_with_empty_harga += 1
-                            if rows_checked <= 5:
-                                print(f"[IMPORT WARNING] Row {row_idx} - '{fee_operator}' ({kelas}) has no harga, will be created with biaya=0")
+                        # Tambah ke batch
+                        batch_operations.append({
+                            'kode': kode,
+                            'nama_tindakan': str(fee_operator),
+                            'kelas': str(kelas),
+                            'biaya_dokter': biaya_dokter,
+                            'biaya_rs': biaya_rs
+                        })
                         
-                        db_helper.add_operation(
-                            kode=kode,
-                            nama_tindakan=str(fee_operator),
-                            kelas=str(kelas),
-                            biaya_dokter=biaya_dokter,
-                            biaya_rs=biaya_rs
-                        )
-                        stats['operations_imported'] += 1
-                        
-                        # Log first few successful imports
-                        if stats['operations_imported'] <= 3:
-                            print(f"[IMPORT OK] Operasi Row {row_idx}: kode={kode}, nama={fee_operator}, kelas={kelas}")
+                        # Commit batch jika sudah mencapai batch_size atau akhir file
+                        if len(batch_operations) >= batch_size:
+                            print(f"[IMPORT] Committing batch of {len(batch_operations)} operations...")
+                            for op in batch_operations:
+                                db_helper.add_operation(**op)
+                            db.session.commit()
+                            stats['operations_imported'] += len(batch_operations)
+                            print(f"[IMPORT] Total operations imported so far: {stats['operations_imported']}")
+                            batch_operations = []
                         
                     except Exception as e:
                         if rows_checked <= 3:
                             print(f"[IMPORT ERROR] Operasi Row {row_idx}: {str(e)}")
                         stats['operations_skipped'] += 1
-                        continue
+                
+                # Commit remaining batch
+                if batch_operations:
+                    print(f"[IMPORT] Committing final batch of {len(batch_operations)} operations...")
+                    for op in batch_operations:
+                        db_helper.add_operation(**op)
+                    db.session.commit()
+                    stats['operations_imported'] += len(batch_operations)
+                    print(f"[IMPORT] Final total operations imported: {stats['operations_imported']}")
         
-        # Import Dokter
+        # Import Dokter dengan BATCH PROCESSING
         if dokter_sheet:
             print(f"[IMPORT] Processing sheet: {dokter_sheet}")
             ws = wb[dokter_sheet]
             doctor_count = 0
+            batch_doctors = []
+            
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
                     continue
@@ -257,7 +267,6 @@ def import_excel_to_database(file_path, db_helper):
                 
                 try:
                     # Get nama_dokter from column 2 (index 1) or column 1 (index 0)
-                    # Try column B first (index 1), fallback to column A (index 0)
                     nama_dokter = row[1] if len(row) > 1 and row[1] else row[0]
                     
                     if not nama_dokter:
@@ -269,33 +278,49 @@ def import_excel_to_database(file_path, db_helper):
                         stats['doctors_skipped'] += 1
                         continue
                     
-                    # Check if doctor already exists in Doctor table
+                    # Check if doctor already exists
                     existing = db_helper.get_doctor_by_name(nama_dokter)
                     if existing:
                         stats['doctors_duplicates'] += 1
                         continue
                     
-                    result = db_helper.add_doctor(nama_dokter)
-                    if result:
-                        stats['doctors_imported'] += 1
-                        doctor_count += 1
-                        if doctor_count <= 3:
-                            print(f"[IMPORT OK] Doctor imported: {nama_dokter}")
-                    else:
-                        stats['doctors_duplicates'] += 1
+                    batch_doctors.append(nama_dokter)
+                    
+                    # Commit batch
+                    if len(batch_doctors) >= batch_size:
+                        print(f"[IMPORT] Committing batch of {len(batch_doctors)} doctors...")
+                        for doctor_name in batch_doctors:
+                            db_helper.add_doctor(doctor_name)
+                        db.session.commit()
+                        stats['doctors_imported'] += len(batch_doctors)
+                        doctor_count += len(batch_doctors)
+                        print(f"[IMPORT] Total doctors imported so far: {doctor_count}")
+                        batch_doctors = []
+                        
                 except Exception as e:
                     print(f"[IMPORT ERROR] Doctor Row {row_idx}: {str(e)}")
                     stats['doctors_skipped'] += 1
                     continue
             
+            # Commit remaining batch
+            if batch_doctors:
+                print(f"[IMPORT] Committing final batch of {len(batch_doctors)} doctors...")
+                for doctor_name in batch_doctors:
+                    db_helper.add_doctor(doctor_name)
+                db.session.commit()
+                stats['doctors_imported'] += len(batch_doctors)
+                doctor_count += len(batch_doctors)
+            
             print(f"[IMPORT] Total doctors imported: {doctor_count}")
         else:
             print("[IMPORT] Sheet 'db nama dokter' not found - skipping doctor import")
         
-        # Import Tindakan (opsional)
+        # Import Tindakan dengan BATCH PROCESSING
         if tindakan_sheet:
             print(f"[IMPORT] Processing sheet: {tindakan_sheet}")
             ws = wb[tindakan_sheet]
+            batch_tindakan = []
+            
             for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
                 if row_idx == 1:  # Skip header
                     continue
@@ -320,18 +345,36 @@ def import_excel_to_database(file_path, db_helper):
                     except (ValueError, TypeError):
                         amount_float = 0
                     
-                    db_helper.add_tindakan_item(
-                        nama_tindakan=str(nama_tindakan),
-                        kelas=str(kelas),
-                        kategory=str(kategory or ''),
-                        sales_item_type=str(sales_item_type or ''),
-                        amount=amount_float
-                    )
-                    stats['tindakan_imported'] += 1
+                    batch_tindakan.append({
+                        'nama_tindakan': str(nama_tindakan),
+                        'kelas': str(kelas),
+                        'kategory': str(kategory or ''),
+                        'sales_item_type': str(sales_item_type or ''),
+                        'amount': amount_float
+                    })
+                    
+                    # Commit batch
+                    if len(batch_tindakan) >= batch_size:
+                        print(f"[IMPORT] Committing batch of {len(batch_tindakan)} tindakan...")
+                        for tind in batch_tindakan:
+                            db_helper.add_tindakan_item(**tind)
+                        db.session.commit()
+                        stats['tindakan_imported'] += len(batch_tindakan)
+                        print(f"[IMPORT] Total tindakan imported so far: {stats['tindakan_imported']}")
+                        batch_tindakan = []
+                        
                 except Exception as e:
                     print(f"[IMPORT ERROR] Tindakan Row {row_idx}: {str(e)}")
                     stats['tindakan_skipped'] += 1
                     continue
+            
+            # Commit remaining batch
+            if batch_tindakan:
+                print(f"[IMPORT] Committing final batch of {len(batch_tindakan)} tindakan...")
+                for tind in batch_tindakan:
+                    db_helper.add_tindakan_item(**tind)
+                db.session.commit()
+                stats['tindakan_imported'] += len(batch_tindakan)
         
         wb.close()
         print(f"[IMPORT] Import completed successfully")

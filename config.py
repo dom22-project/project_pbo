@@ -15,6 +15,19 @@ class Config:
     MYSQL_DATABASE = 'pbo_db'
     SQLALCHEMY_DATABASE_URI = f'mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'pool_recycle': 3600,
+        'pool_pre_ping': True,
+        'connect_args': {
+            'connect_timeout': 30,
+        }
+    }
+    
+    # Import/Export batch settings untuk menghindari timeout
+    BATCH_SIZE = 500  # Commit setiap 500 baris
+    IMPORT_TIMEOUT = 600  # 10 menit timeout untuk import operasi
+    QUERY_TIMEOUT = 30  # 30 detik timeout untuk query individual
     
     # Application settings
     APP_NAME = 'Sistem Manajemen PBO - RS Siloam TB Simatupang'

@@ -1,45 +1,58 @@
 import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 class Config:
     """Configuration class for Flask application"""
     
-    # Secret key for session management
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    
-    # Database configuration - MySQL XAMPP
+    # Base directory
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    # MySQL Connection Settings
-    MYSQL_HOST = 'localhost'
-    MYSQL_USER = 'root'
-    MYSQL_PASSWORD = ''  # Default XAMPP password is empty
-    MYSQL_DATABASE = 'pbo_db'
-    SQLALCHEMY_DATABASE_URI = f'mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}'
+    
+    # Secret key for session management
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    
+    # Database configuration - MySQL from .env
+    MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
+    MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
+    MYSQL_USER = os.getenv('MYSQL_USER', 'root')
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
+    MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'pbo_db')
+    
+    # Build SQLAlchemy database URI from .env
+    if MYSQL_PASSWORD:
+        SQLALCHEMY_DATABASE_URI = f'mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}'
+    else:
+        SQLALCHEMY_DATABASE_URI = f'mysql+mysqlconnector://{MYSQL_USER}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}'
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 10,
-        'pool_recycle': 3600,
+        'pool_size': int(os.getenv('DB_POOL_SIZE', 10)),
+        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', 3600)),
         'pool_pre_ping': True,
         'connect_args': {
-            'connect_timeout': 30,
+            'connect_timeout': int(os.getenv('DB_CONNECT_TIMEOUT', 30)),
         }
     }
     
-    # Import/Export batch settings untuk menghindari timeout
-    BATCH_SIZE = 500  # Commit setiap 500 baris
-    IMPORT_TIMEOUT = 600  # 10 menit timeout untuk import operasi
-    QUERY_TIMEOUT = 30  # 30 detik timeout untuk query individual
+    # Import/Export batch settings
+    BATCH_SIZE = int(os.getenv('BATCH_SIZE', 500))
+    IMPORT_TIMEOUT = int(os.getenv('IMPORT_TIMEOUT', 600))
+    QUERY_TIMEOUT = int(os.getenv('QUERY_TIMEOUT', 30))
     
     # Application settings
-    APP_NAME = 'Sistem Manajemen PBO - RS Siloam TB Simatupang'
-    HOSPITAL_NAME = 'RS Siloam TB Simatupang'
-    HOSPITAL_ADDRESS = 'Jl. RA Kartini No. 08 Cilandak'
-    HOSPITAL_CITY = 'Jakarta Selatan 12430'
-    HOSPITAL_PHONE = '(021) 29531900 Ext. 29790'
+    APP_NAME = os.getenv('APP_NAME', 'Sistem Manajemen PBO - RS Siloam TB Simatupang')
+    HOSPITAL_NAME = os.getenv('HOSPITAL_NAME', 'RS Siloam TB Simatupang')
+    HOSPITAL_ADDRESS = os.getenv('HOSPITAL_ADDRESS', 'Jl. RA Kartini No. 08 Cilandak')
+    HOSPITAL_CITY = os.getenv('HOSPITAL_CITY', 'Jakarta Selatan 12430')
+    HOSPITAL_PHONE = os.getenv('HOSPITAL_PHONE', '(021) 29531900 Ext. 29790')
     
     # Pagination
-    ITEMS_PER_PAGE = 20
+    ITEMS_PER_PAGE = int(os.getenv('ITEMS_PER_PAGE', 20))
     
-    # Room rates mapping
+    # OT Room Charge percentage
+    OT_ROOM_CHARGE_PERCENTAGE = float(os.getenv('OT_ROOM_CHARGE_PERCENTAGE', 0.30))
     ROOM_RATES = {
         'BASIC': 350000,
         'STANDARD': 650000,
@@ -63,7 +76,7 @@ class Config:
     OT_ROOM_CHARGE_PERCENTAGE = 0.30
     
     # Upload settings
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_UPLOAD_SIZE_MB', 16)) * 1024 * 1024
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
     ALLOWED_EXTENSIONS = {'xlsx'}
     

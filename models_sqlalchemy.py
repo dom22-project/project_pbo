@@ -4,7 +4,7 @@ from datetime import datetime
 db = SQLAlchemy()
 
 class PBOData(db.Model):
-    __tablename__ = 'database'
+    __tablename__ = 'pbo_data'
     
     id = db.Column(db.Integer, primary_key=True)
     diagnosa = db.Column(db.String(255))
@@ -201,7 +201,7 @@ class PaketTindakan(db.Model):
     __tablename__ = 'paket_tindakan'
     
     id = db.Column(db.Integer, primary_key=True)
-    pbo_id = db.Column(db.Integer, db.ForeignKey('database.id'), nullable=False)
+    pbo_id = db.Column(db.Integer, db.ForeignKey('pbo_data.id'), nullable=False)
     tindakan_id = db.Column(db.Integer, db.ForeignKey('tindakan_items.id'))
     nama_tindakan = db.Column(db.String(255))
     kategory = db.Column(db.String(100))

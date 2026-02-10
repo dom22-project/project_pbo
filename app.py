@@ -878,6 +878,20 @@ def monthly_report():
     # Get report data for selected month
     report_data = db_helper.get_monthly_report(selected_year, selected_month)
     
+    # Convert tanggal from string to date if needed for template
+    from datetime import date, datetime as dt
+    for item in report_data:
+        if isinstance(item['tanggal'], str):
+            try:
+                # Try to parse string as date
+                if len(item['tanggal']) == 10:  # YYYY-MM-DD format
+                    item['tanggal'] = dt.strptime(item['tanggal'], '%Y-%m-%d').date()
+                else:
+                    item['tanggal'] = dt.fromisoformat(item['tanggal']).date()
+            except (ValueError, AttributeError):
+                # If parsing fails, keep as string
+                pass
+    
     # Get month name in Indonesian
     month_names = {
         1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April', 5: 'Mei', 6: 'Juni',
@@ -889,14 +903,38 @@ def monthly_report():
     # Calculate statistics
     total_operations = len(report_data)
     total_revenue = sum([item['total'] or 0 for item in report_data])
-    unique_doctors = len(set([item['nama_dokter'] for item in report_data if item['nama_dokter']]))
-    unique_insurances = len(set([item['perusahaan_asuransi'] for item in report_data if item['perusahaan_asuransi']]))
+    
     # Most frequent names in the month
     from collections import Counter
 
-    operasi_names = [item.get('nama_operasi') for item in report_data if item.get('nama_operasi')]
-    dokter_names = [item.get('nama_dokter') for item in report_data if item.get('nama_dokter')]
-    insurance_names = [item.get('perusahaan_asuransi') for item in report_data if item.get('perusahaan_asuransi')]
+    # Clean and normalize data for accurate counting
+    # IMPORTANT: Include ALL data, including empty/null values (convert to "Umum")
+    operasi_names = []
+    dokter_names = []
+    insurance_names = []
+    
+    for item in report_data:
+        # Operations - filter only non-empty
+        nama_op = str(item.get('nama_operasi', '')).strip() if item.get('nama_operasi') else None
+        if nama_op:
+            operasi_names.append(nama_op)
+        
+        # Doctors - filter only non-empty
+        nama_dok = str(item.get('nama_dokter', '')).strip() if item.get('nama_dokter') else None
+        if nama_dok:
+            dokter_names.append(nama_dok)
+        
+        # Insurance - IMPORTANT: Convert empty/null to "Umum" to capture all data
+        nama_asuransi = str(item.get('perusahaan_asuransi', '')).strip() if item.get('perusahaan_asuransi') else None
+        if nama_asuransi:  # If has value
+            insurance_names.append(nama_asuransi)
+        else:  # If empty/null
+            insurance_names.append('Umum')
+    
+    # Count unique values (for unique_insurances use only actual non-"Umum" values)
+    unique_doctors = len(set([d for d in dokter_names if d]))
+    actual_insurances = [i for i in insurance_names if i != 'Umum']
+    unique_insurances = len(set(actual_insurances)) if actual_insurances else 1
 
     top_operasi = Counter(operasi_names).most_common(1)
     top_dokter = Counter(dokter_names).most_common(1)

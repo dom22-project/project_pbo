@@ -219,7 +219,11 @@
                             <td><strong>{{ loop.index }}</strong></td>
                             <td>
                                 {% if item.tanggal %}
-                                    {{ item.tanggal.strftime('%d/%m/%Y') }}
+                                    {% if item.tanggal.strftime %}
+                                        {{ item.tanggal.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        {{ item.tanggal }}
+                                    {% endif %}
                                 {% else %}
                                     -
                                 {% endif %}

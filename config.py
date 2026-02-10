@@ -83,5 +83,8 @@ class Config:
     # Backup settings
     BACKUP_FOLDER = os.path.join(BASE_DIR, 'backups')
     
+    # Database path (for SQLite fallback, not used with MySQL)
+    DATABASE_PATH = os.path.join(BASE_DIR, 'pbo_database.db')
+    
     # PDF settings
     PDF_FOLDER = os.path.join(BASE_DIR, 'static', 'pdf')

@@ -4,7 +4,7 @@ from datetime import datetime
 db = SQLAlchemy()
 
 class PBOData(db.Model):
-    __tablename__ = 'pbo_data'
+    __tablename__ = 'database'
     
     id = db.Column(db.Integer, primary_key=True)
     diagnosa = db.Column(db.String(255))
@@ -48,7 +48,7 @@ class PBOData(db.Model):
     edited_at = db.Column(db.DateTime)
     
     # Relationships
-    paket_tindakan = db.relationship('PaketTindakan', backref='pbo_data', lazy=True, cascade='all, delete-orphan')
+    paket_tindakan = db.relationship('PaketTindakan', backref='database', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<PBOData {self.id}>'
@@ -114,17 +114,17 @@ class PBOData(db.Model):
             'total': self.total,
             'catatan': self.catatan,
             'keterangan': self.keterangan,
-            'tanggal': self.tanggal.isoformat() if self.tanggal else None,
+            'tanggal': self.tanggal.isoformat() if self.tanggal and hasattr(self.tanggal, 'isoformat') else str(self.tanggal) if self.tanggal else None,
             'nama_pasien': self.nama_pasien,
             'hubungan_dengan_pasien': self.hubungan_dengan_pasien,
             'petugas_front_office': self.petugas_front_office,
             'perusahaan_asuransi': self.perusahaan_asuransi,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None,
             'version_number': self.version_number,
             'parent_id': self.parent_id,
             'is_latest': self.is_latest,
             'edited_by': self.edited_by,
-            'edited_at': self.edited_at.isoformat() if self.edited_at else None
+            'edited_at': self.edited_at.isoformat() if self.edited_at and hasattr(self.edited_at, 'isoformat') else str(self.edited_at) if self.edited_at else None
         }
 
 class OperationTable(db.Model):
@@ -166,7 +166,7 @@ class Doctor(db.Model):
         return {
             'id': self.id,
             'nama_dokter': self.nama_dokter,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
         }
 
 class TindakanItem(db.Model):
@@ -194,14 +194,14 @@ class TindakanItem(db.Model):
             'kategory': self.kategory,
             'sales_item_type': self.sales_item_type,
             'amount': self.amount,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
         }
 
 class PaketTindakan(db.Model):
     __tablename__ = 'paket_tindakan'
     
     id = db.Column(db.Integer, primary_key=True)
-    pbo_id = db.Column(db.Integer, db.ForeignKey('pbo_data.id'), nullable=False)
+    pbo_id = db.Column(db.Integer, db.ForeignKey('database.id'), nullable=False)
     tindakan_id = db.Column(db.Integer, db.ForeignKey('tindakan_items.id'))
     nama_tindakan = db.Column(db.String(255))
     kategory = db.Column(db.String(100))
@@ -219,7 +219,7 @@ class PaketTindakan(db.Model):
             'nama_tindakan': self.nama_tindakan,
             'kategory': self.kategory,
             'harga': self.harga,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
         }
 
 class User(db.Model):
@@ -239,7 +239,7 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'role': self.role,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
         }
 
 class RoomType(db.Model):
@@ -261,5 +261,5 @@ class RoomType(db.Model):
             'nama_kamar': self.nama_kamar,
             'harga_per_hari': self.harga_per_hari,
             'deskripsi': self.deskripsi,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
         }

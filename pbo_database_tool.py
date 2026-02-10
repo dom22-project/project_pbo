@@ -86,7 +86,7 @@ class PBODatabaseManager:
                 f.write(f"-- Backup Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write("-- Database: pbo_db\n")
                 f.write("-- Charset: utf8mb4\n")
-                f.write("-- Tables: 7 (users, operation_tables, doctors, tindakan_items, room_types, pbo_data, paket_tindakan)\n")
+                f.write("-- Tables: 7 (users, operation_tables, doctors, tindakan_items, room_types, database, paket_tindakan)\n")
                 f.write("\n")
                 
                 cursor.execute(f"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{self.database}'")

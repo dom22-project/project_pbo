@@ -166,7 +166,7 @@ def verify_database():
         'doctors',
         'tindakan_items',
         'room_types',
-        'pbo_data',
+        'database',
         'paket_tindakan'
     ]
     
@@ -187,7 +187,7 @@ def verify_database():
     
     important_tables = {
         'users': 'Users',
-        'pbo_data': 'PBO Records',
+        'database': 'PBO Records',
         'operation_tables': 'Operations',
         'doctors': 'Doctors',
         'room_types': 'Room Types'

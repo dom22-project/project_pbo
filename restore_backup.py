@@ -83,9 +83,9 @@ def restore_from_backup(backup_file):
         room_count = cursor.fetchone()[0]
         print(f"   ✅ room_types: {room_count} records")
         
-        cursor.execute("SELECT COUNT(*) FROM pbo_data")
+        cursor.execute("SELECT COUNT(*) FROM database")
         pbo_count = cursor.fetchone()[0]
-        print(f"   ✅ pbo_data: {pbo_count} records")
+        print(f"   ✅ database: {pbo_count} records")
         
         cursor.close()
         conn.close()

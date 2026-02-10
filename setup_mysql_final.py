@@ -83,7 +83,7 @@ def setup():
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         
-        """CREATE TABLE IF NOT EXISTS pbo_data (
+        """CREATE TABLE IF NOT EXISTS database (
             id INT AUTO_INCREMENT PRIMARY KEY,
             diagnosa VARCHAR(255),
             nama_operasi VARCHAR(255),
@@ -134,7 +134,7 @@ def setup():
             kategory VARCHAR(100),
             harga DECIMAL(15, 2) DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT fk_paket_pbo FOREIGN KEY (pbo_id) REFERENCES pbo_data(id) ON DELETE CASCADE,
+            CONSTRAINT fk_paket_pbo FOREIGN KEY (pbo_id) REFERENCES database(id) ON DELETE CASCADE,
             CONSTRAINT fk_paket_tindakan FOREIGN KEY (tindakan_id) REFERENCES tindakan_items(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
         

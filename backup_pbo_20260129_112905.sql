@@ -50,14 +50,14 @@ CREATE TABLE `paket_tindakan` (
   PRIMARY KEY (`id`),
   KEY `idx_pbo_id` (`pbo_id`),
   KEY `idx_tindakan_id` (`tindakan_id`),
-  CONSTRAINT `fk_paket_pbo` FOREIGN KEY (`pbo_id`) REFERENCES `pbo_data` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_paket_pbo` FOREIGN KEY (`pbo_id`) REFERENCES `database` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_paket_tindakan` FOREIGN KEY (`tindakan_id`) REFERENCES `tindakan_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
--- Table: pbo_data
-DROP TABLE IF EXISTS pbo_data;
-CREATE TABLE `pbo_data` (
+-- Table: database
+DROP TABLE IF EXISTS database;
+CREATE TABLE `database` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `diagnosa` varchar(255) DEFAULT NULL,
   `nama_operasi` varchar(255) DEFAULT NULL,

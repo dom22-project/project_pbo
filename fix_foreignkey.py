@@ -50,7 +50,7 @@ def fix_foreignkeys():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_pbo_id (pbo_id),
             INDEX idx_tindakan_id (tindakan_id),
-            CONSTRAINT fk_paket_pbo FOREIGN KEY (pbo_id) REFERENCES pbo_data(id) ON DELETE CASCADE,
+            CONSTRAINT fk_paket_pbo FOREIGN KEY (pbo_id) REFERENCES database(id) ON DELETE CASCADE,
             CONSTRAINT fk_paket_tindakan FOREIGN KEY (tindakan_id) REFERENCES tindakan_items(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"""
     ]

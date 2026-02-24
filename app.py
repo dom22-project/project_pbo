@@ -10,7 +10,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from io import BytesIO
 from config import Config
-from models_sqlalchemy import db, User
+from models_sqlalchemy import db, User, PBOData
 from models import Database
 from utils import PBOCalculator, FormValidator, ReportGenerator
 
@@ -23,11 +23,56 @@ db.init_app(app)
 # Initialize database helper
 db_helper = Database()
 
+# Before request handler untuk maintain authentication cookies
+@app.before_request
+def maintain_auth_cookies():
+    """Maintain authentication cookies untuk shared session"""
+    if 'user_id' in session and 'username' in session:
+        # Set cookies setiap request untuk ensure mereka tetap ada
+        response = None
+        # We'll set cookies in the response, so we need to use @app.after_request
+        pass
+
+@app.after_request
+def set_auth_cookies(response):
+    """Set authentication cookies untuk shared session dengan sewa_alat"""
+    if 'user_id' in session and 'username' in session:
+        response.set_cookie('pbo_user', session.get('username', ''), path='/', samesite='Lax')
+        response.set_cookie('pbo_role', session.get('role', 'user'), path='/', samesite='Lax')
+        response.set_cookie('pbo_user_id', str(session.get('user_id', '')), path='/', samesite='Lax')
+    return response
+
 # Create tables within app context dan setup default data
 with app.app_context():
     try:
         # Create all tables
         db.create_all()
+        
+         # Fix AUTO_INCREMENT issue - check for ID=0 and clean up
+        try:
+            # Check and delete records with ID=0 (duplicate key prevention)
+            pbo_zero = PBOData.query.filter_by(id=0).first()
+            if pbo_zero:
+                print("[INIT] Found and deleting PBOData with ID=0 (troublemaker record)")
+                db.session.delete(pbo_zero)
+                db.session.commit()
+            
+            # Fix AUTO_INCREMENT for PBOData table if needed
+            from sqlalchemy import text
+            max_id = db.session.query(db.func.max(PBOData.id)).scalar()
+            if max_id is not None:
+                next_id = max_id + 1
+            else:
+                next_id = 1
+            
+            # Execute raw SQL to set AUTO_INCREMENT
+            db.session.execute(text(f"ALTER TABLE database AUTO_INCREMENT = {next_id}"))
+            db.session.commit()
+            print(f"[INIT] Set AUTO_INCREMENT to {next_id}")
+            
+        except Exception as e:
+            print(f"[INIT WARNING] Could not fix AUTO_INCREMENT: {str(e)}")
+            # Continue anyway - not critical if this fails
         
         # Add default users if none exist
         if User.query.count() == 0:
@@ -68,6 +113,19 @@ with app.app_context():
         print(f"[WARNING] Database not available: {str(e)}")
         print("[INFO] Aplikasi akan berjalan tanpa database")
         print("[INFO] Pastikan MySQL XAMPP sudah dijalankan")
+
+# Register custom Jinja2 filters
+import json
+
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convert JSON string to Python object"""
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 # Helper function to find sheet name (case-insensitive)
 def find_sheet(workbook, sheet_name_pattern):
@@ -543,7 +601,7 @@ def admin_required(f):
             return redirect(url_for('login'))
         if session.get('role') != 'admin':
             flash('Akses ditolak! Hanya admin yang dapat mengakses halaman ini.', 'danger')
-            return redirect(url_for('index'))
+    
         return f(*args, **kwargs)
     return decorated_function
 
@@ -562,7 +620,14 @@ def login():
             session['username'] = user['username']
             session['role'] = user['role']
             flash(f'Selamat datang, {user["username"]}!', 'success')
-            return redirect(url_for('index'))
+
+
+            # Set cookies untuk shared authentication dengan sewa_alat
+            response = redirect(url_for('index'))
+            response.set_cookie('pbo_user', user['username'], path='/', samesite='Lax')
+            response.set_cookie('pbo_role', user['role'], path='/', samesite='Lax')
+            response.set_cookie('pbo_user_id', str(user['id']), path='/', samesite='Lax')
+            return response
         else:
             flash('Username atau password salah!', 'danger')
             return redirect(url_for('login'))
@@ -579,7 +644,13 @@ def logout():
     username = session.get('username', 'User')
     session.clear()
     flash(f'Anda telah logout, {username}!', 'info')
-    return redirect(url_for('login'))
+
+    # Clear authentication cookies
+    response = redirect(url_for('login'))
+    response.delete_cookie('pbo_user', path='/')
+    response.delete_cookie('pbo_role', path='/')
+    response.delete_cookie('pbo_user_id', path='/')
+    return response
 
 @app.route('/')
 @login_required
@@ -931,10 +1002,36 @@ def print_pbo(pbo_id):
         flash('Data PBO tidak ditemukan', 'danger')
         return redirect(url_for('search_pbo'))
     
+    # Store resolved operation names for template
+    resolved_operations = {}
+    for i in range(1, 5):
+        tabel_operasi_key = f'tabel_operasi{i}'
+        nama_tindakan = ''
+        
+        if pbo_data.get(tabel_operasi_key):
+            kode = pbo_data[tabel_operasi_key]
+            # If it's JSON operations array, extract first operation
+            try:
+                import json
+                ops = json.loads(kode)
+                if isinstance(ops, list) and len(ops) > 0:
+                    kode = ops[0].get('kode', '')
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                pass
+            
+            # Extract operation name from kode
+            # Format is typically: "CODE - NAME" or just "NAME"
+            if ' - ' in str(kode):
+                nama_tindakan = str(kode).split(' - ', 1)[1].strip()
+            else:
+                nama_tindakan = str(kode).strip()
+        
+        resolved_operations[f'nama_tindakan{i}'] = nama_tindakan
     summary = ReportGenerator.generate_pbo_summary(pbo_data)
     
     return render_template('print_pbo.html', 
                          pbo=pbo_data,
+                    resolved_operations=resolved_operations,
                          summary=summary)
 
 # PBO Versioning Routes

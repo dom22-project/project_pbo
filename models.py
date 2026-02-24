@@ -13,6 +13,7 @@ class Database:
     # PBO Data Operations
     def create_pbo(self, data):
         """Create new PBO record"""
+        from datetime import datetime
         pbo = PBOData(
             diagnosa=data[0], nama_operasi=data[1], sifat_operasi=data[2],
             nama_dokter=data[3], kelas=data[4], tabel_operasi1=data[5],
@@ -26,7 +27,14 @@ class Database:
             total=data[24], catatan=data[25], keterangan=data[26],
             tanggal=datetime.strptime(data[27], '%Y-%m-%d').date() if data[27] else None,
             nama_pasien=data[28], hubungan_dengan_pasien=data[29],
-            petugas_front_office=data[30], perusahaan_asuransi=data[31]
+                        petugas_front_office=data[30], perusahaan_asuransi=data[31],
+            tindakan_tambahan=None,
+            created_at=datetime.now(),
+            version_number=1,
+            parent_id=None,
+            is_latest=1,
+            edited_by=None,
+            edited_at=None
         )
         db.session.add(pbo)
         db.session.commit()

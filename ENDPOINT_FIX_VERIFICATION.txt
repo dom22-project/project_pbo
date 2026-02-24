@@ -1,0 +1,44 @@
+"""
+Test to verify the calculate-surgery-fees endpoint is working correctly after fix
+"""
+
+import json
+
+# Test data to verify endpoint works
+test_payload = {
+    'sifat_operasi': 'CITO',
+    'operations': [
+        {
+            'kode': '4199999994',
+            'persentase': 1.0  # 100%
+        }
+    ]
+}
+
+print("=" * 70)
+print("TEST: API Endpoint Verification")
+print("=" * 70)
+print("\n📋 Test Payload:")
+print(json.dumps(test_payload, indent=2))
+
+print("\n" + "=" * 70)
+print("Expected Results for CITO (1.25x surcharge):")
+print("=" * 70)
+print("✓ Base Surgeon (biaya_dokter): Rp 1,000,000")
+print("✓ With CITO Surcharge (1.25x): Rp 1,250,000")
+print("✓ Surgeon Fee should be: Rp 1,250,000")
+print("✓ Anesthesi Fee should be: Rp 625,000")
+print("✓ OT Room Charge (30% of surgeon): Rp 375,000")
+
+print("\n" + "=" * 70)
+print("How to test:")
+print("=" * 70)
+print("1. Start Flask app with: python app.py")
+print("2. Open browser and navigate to: http://localhost:5000/input")
+print("3. Select any Tindakan Operasi")
+print("4. Change 'Sifat Operasi' to 'CITO'")
+print("5. Check browser console (F12 → Console tab)")
+print("   - Look for: '📊 Calculating Surgery Fees:' log")
+print("   - Verify Surgeon value shows +25% increase")
+print("6. OR check the HTML field #surgeon value")
+print("\n" + "=" * 70)

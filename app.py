@@ -1148,6 +1148,8 @@ def api_get_operation_details():
             'success': False,
             'error': str(e)
         }), 400
+
+@app.route('/api/calculate-surgery-fees', methods=['POST'])
 def api_calculate_surgery_fees():
     """API endpoint to calculate surgery fees from dynamic operations"""
     try:

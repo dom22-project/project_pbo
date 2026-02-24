@@ -471,96 +471,15 @@ $(document).ready(function() {
     }
 
     // Calculate surgery fees - use event delegation for dynamically added elements
+    // This function is the main calculator that applies surcharge
     $('#calculateSurgeryBtn').click(function() {
         calculateSurgeryFees();
     });
     
-    // Use event delegation for dynamically added operation and percentage selects
+    // Recalculate when operation, percentage, or sifat_operasi changes
     $(document).on('change', '.operation-select, .percentage-select, #sifat_operasi', function() {
         calculateSurgeryFees();
     });
-    
-    // New: Fetch and update surgeon and anesthesi price when operation is selected
-    // This now sums ALL selected operations (not just one)
-    $(document).on('change', '.operation-select, .percentage-select', function() {
-        calculateTotalSurgeryFees();
-    });
-    
-    // Function to calculate total surgery fees from ALL selected operations
-    function calculateTotalSurgeryFees() {
-        let totalSurgeonFee = 0;
-        let totalAnesthesiFee = 0;
-        let operationCount = 0;
-        let pendingRequests = 0;
-        
-        // Iterate through all operation rows
-        $('.operation-row').each(function() {
-            const rowId = $(this).data('row-id');
-            const selectedValue = $(`#operation_kode_${rowId}`).val();
-            const persentase = parseFloat($(`#operation_persentase_${rowId}`).val() || 100);
-            const percentage = persentase > 1 ? persentase / 100 : persentase;
-            
-            if (selectedValue && selectedValue.trim()) {
-                operationCount++;
-                const kode = selectedValue.split(' - ')[0].trim();
-                
-                pendingRequests++;
-                
-                // Fetch operation price from API
-                $.ajax({
-                    url: '/api/get-operation-price',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ kode: kode }),
-                    success: function(response) {
-                        if (response.success) {
-                            // Add this operation's fees to totals
-                            const surgeonFee = (response.biaya_dokter || 0) * percentage;
-                            const anesthesiFee = (response.biaya_rs || 0) * percentage;
-                            
-                            totalSurgeonFee += surgeonFee;
-                            totalAnesthesiFee += anesthesiFee;
-                            
-                            console.log(`Row ${rowId}: Surgeon=${surgeonFee}, Anesthesi=${anesthesiFee}`);
-                        }
-                        
-                        pendingRequests--;
-                        
-                        // When all requests are done, update the fields
-                        if (pendingRequests === 0) {
-                            console.log(`Total from ${operationCount} operations - Surgeon: ${totalSurgeonFee}, Anesthesi: ${totalAnesthesiFee}`);
-                            
-                            // Update surgeon field with total
-                            $('#surgeon').val(formatNumber(totalSurgeonFee));
-                            
-                            // Update anesthesi field with total
-                            $('#anesthesi').val(formatNumber(totalAnesthesiFee));
-                            
-                            calculateTotal();
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error(`Error fetching operation price for row ${rowId}:`, error);
-                        pendingRequests--;
-                        
-                        // Still update if this was the last request
-                        if (pendingRequests === 0) {
-                            $('#surgeon').val(formatNumber(totalSurgeonFee));
-                            $('#anesthesi').val(formatNumber(totalAnesthesiFee));
-                            calculateTotal();
-                        }
-                    }
-                });
-            }
-        });
-        
-        // If no operations selected, clear the fields
-        if (operationCount === 0) {
-            $('#surgeon').val(formatNumber(0));
-            $('#anesthesi').val(formatNumber(0));
-            calculateTotal();
-        }
-    }
 
     function calculateSurgeryFees() {
         // Collect operations from current form
@@ -578,10 +497,26 @@ $(document).ready(function() {
             }
         });
         
+        const sifatOperasi = $('#sifat_operasi').val();
+        
+        console.log('📊 Calculating Surgery Fees:');
+        console.log('   Sifat Operasi:', sifatOperasi);
+        console.log('   Operations:', operations);
+        
         const data = {
-            sifat_operasi: $('#sifat_operasi').val(),
+            sifat_operasi: sifatOperasi,
             operations: operations
         };
+
+        // If no operations, clear fields
+        if (operations.length === 0) {
+            console.log('⚠️  No operations selected, clearing surgeon/anesthesi fields');
+            $('#surgeon').val(formatNumber(0));
+            $('#anesthesi').val(formatNumber(0));
+            $('#ot_room_charge').val(formatNumber(0));
+            calculateTotal();
+            return;
+        }
 
         $.ajax({
             url: '/api/calculate-surgery-fees',
@@ -589,15 +524,23 @@ $(document).ready(function() {
             contentType: 'application/json',
             data: JSON.stringify(data),
             success: function(response) {
+                console.log('✅ Surgery fees calculation response:', response);
                 if (response.success) {
+                    console.log('   Surgeon:', response.data.surgeon);
+                    console.log('   Anesthesi:', response.data.anesthesi);
+                    console.log('   OT Room Charge:', response.data.ot_room_charge);
                     $('#surgeon').val(formatNumber(response.data.surgeon));
                     $('#anesthesi').val(formatNumber(response.data.anesthesi));
                     $('#ot_room_charge').val(formatNumber(response.data.ot_room_charge));
                     calculateTotal();
+                } else {
+                    console.error('❌ API returned error:', response.error);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error calculating surgery fees:', error);
+                console.error('❌ Error calculating surgery fees:', error);
+                console.error('   Status:', status);
+                console.error('   Response:', xhr.responseText);
             }
         });
     }

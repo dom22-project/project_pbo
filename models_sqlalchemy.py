@@ -143,13 +143,13 @@ class OperationTable(db.Model):
     
     def to_dict(self):
         return {
-            'id': self.id,
-            'kode': self.kode,
-            'nama_tindakan': self.nama_tindakan,
-            'kelas': self.kelas,
-            'biaya_dokter': self.biaya_dokter,
-            'biaya_rs': self.biaya_rs,
-            'total_biaya': self.total_biaya
+            'id': self.id or 0,
+            'kode': self.kode or '',
+            'nama_tindakan': self.nama_tindakan or '',
+            'kelas': self.kelas or '',
+            'biaya_dokter': self.biaya_dokter or 0,
+            'biaya_rs': self.biaya_rs or 0,
+            'total_biaya': self.total_biaya or 0
         }
 
 class Doctor(db.Model):
@@ -164,9 +164,9 @@ class Doctor(db.Model):
     
     def to_dict(self):
         return {
-            'id': self.id,
-            'nama_dokter': self.nama_dokter,
-            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
+            'id': self.id or 0,
+            'nama_dokter': self.nama_dokter or '',
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else (str(self.created_at) if self.created_at else '')
         }
 
 class TindakanItem(db.Model):
@@ -188,13 +188,13 @@ class TindakanItem(db.Model):
     
     def to_dict(self):
         return {
-            'id': self.id,
-            'nama_tindakan': self.nama_tindakan,
-            'kelas': self.kelas,
-            'kategory': self.kategory,
-            'sales_item_type': self.sales_item_type,
-            'amount': self.amount,
-            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else str(self.created_at) if self.created_at else None
+            'id': self.id or 0,
+            'nama_tindakan': self.nama_tindakan or '',
+            'kelas': self.kelas or '',
+            'kategory': self.kategory or '',
+            'sales_item_type': self.sales_item_type or '',
+            'amount': self.amount or 0,
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else (str(self.created_at) if self.created_at else '')
         }
 
 class PaketTindakan(db.Model):

@@ -902,10 +902,12 @@ def edit_pbo(pbo_id):
     
     operations = db_helper.get_all_operations()
     doctors = db_helper.get_all_doctors()
+    tindakan_items = db_helper.get_all_tindakan_items()
     return render_template('edit_pbo.html', 
                          pbo=pbo_data,
                          operations=operations,
-                         doctors=doctors)
+                         doctors=doctors,
+                         tindakan_items=tindakan_items)
 
 @app.route('/delete/<int:pbo_id>', methods=['POST'])
 @admin_required

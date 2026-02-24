@@ -266,6 +266,11 @@ const kelasToRoomPrice = {
 
 <script>
 $(document).ready(function() {
+    // Helper function - define early so it's available
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('id-ID');
+    }
+
     // Initialize Select2 for doctor selection with search
     $('.select2-doctor').select2({
         theme: 'bootstrap-5',
@@ -334,6 +339,142 @@ $(document).ready(function() {
         }
     }
 
+    // Auto-calculate room rate when class changes and filter tindakan items
+    $('#kelas').change(function() {
+        const kelas = $(this).val();
+        console.log('Kelas berubah ke:', kelas);
+        
+        // Update room rate based on class
+        if (kelas && kelasToRoomPrice[kelas]) {
+            $('#tarif_kamar').val(kelasToRoomPrice[kelas]);
+            calculateTotal();
+        }
+        
+        // Filter tindakan items based on selected class
+        if (kelas) {
+            console.log('Fetching operasi untuk kelas:', kelas);
+            $.ajax({
+                url: '/api/get-tindakan-by-kelas',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ kelas: kelas }),
+                success: function(response) {
+                    if (response.success) {
+                        console.log('Response success, operasi count:', response.operations.length);
+                        // Update global data
+                        tindakanItemsData = response.tindakan_items;
+                        operationsData = response.operations;
+                        
+                        // Update all existing operation dropdowns
+                        updateAllOperationDropdowns();
+                        
+                        // Show notification
+                        const totalItems = response.operations.length + response.tindakan_items.length;
+                        console.log('Memfilter tindakan untuk kelas: ' + kelas);
+                        console.log('Ditemukan ' + response.operations.length + ' tabel operasi dan ' + response.tindakan_items.length + ' tindakan');
+                    } else {
+                        console.log('Response failed');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching tindakan items:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
+                }
+            });
+        } else {
+            // If no class selected, show all items
+            console.log('Tidak ada kelas dipilih, gunakan semua operasi');
+            tindakanItemsData = {{ tindakan_items|tojson|safe }};
+            operationsData = {{ operations|tojson|safe }};
+            updateAllOperationDropdowns();
+        }
+    });
+
+    // Function to update all operation dropdowns with filtered tindakan
+    function updateAllOperationDropdowns() {
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const selectElement = $(`#operation_kode_${rowId}`);
+            if (selectElement.length === 0) return; // Skip if element not found
+            
+            const currentValue = selectElement.val();
+            
+            // Rebuild options
+            let optionsHtml = '<option value="">-- Pilih Tindakan --</option>';
+            
+            // Add operation tables (always shown)
+            if (operationsData && operationsData.length > 0) {
+                optionsHtml += '<optgroup label="📋 Tabel Operasi Standard">';
+                operationsData.forEach(op => {
+                    optionsHtml += `
+                        <option value="${op.kode} - ${op.nama_tindakan}">
+                            ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                        </option>
+                    `;
+                });
+                optionsHtml += '</optgroup>';
+            }
+            
+            // Add filtered tindakan items
+            if (tindakanItemsData && tindakanItemsData.length > 0) {
+                optionsHtml += '<optgroup label="🏥 Data Tindakan Terbaru">';
+                tindakanItemsData.forEach(item => {
+                    optionsHtml += `
+                        <option value="TINDAKAN-${item.id} - ${item.nama_tindakan}" 
+                                data-kelas="${item.kelas}" 
+                                data-kategory="${item.kategory}"
+                                data-amount="${item.amount}">
+                            ${item.nama_tindakan} - ${item.kelas} (${item.kategory}) - Rp ${formatNumber(item.amount)}
+                        </option>
+                    `;
+                });
+                optionsHtml += '</optgroup>';
+            }
+            
+            // Destroy Select2 if it exists
+            if (selectElement.data('select2')) {
+                selectElement.select2('destroy');
+            }
+            
+            // Update select element
+            selectElement.html(optionsHtml);
+            
+            // Try to restore previous value if it still exists
+            if (currentValue) {
+                const optionExists = selectElement.find(`option[value="${currentValue}"]`).length > 0;
+                if (optionExists) {
+                    selectElement.val(currentValue);
+                } else {
+                    // If previous value doesn't exist in filtered list, clear it
+                    selectElement.val('');
+                }
+            }
+            
+            // Reinitialize Select2 for the updated row
+            selectElement.select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Cari dan Pilih Tindakan Operasi --',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function() {
+                        return "Tindakan tidak ditemukan";
+                    },
+                    searching: function() {
+                        return "Mencari...";
+                    },
+                    inputTooShort: function() {
+                        return "Ketik untuk mencari tindakan...";
+                    }
+                }
+            });
+            
+            // Trigger change event for calculation
+            selectElement.trigger('change');
+        });
+    }
+
     // Add operation row button
     $('#addOperationBtn').click(function() {
         addOperationRow();
@@ -356,7 +497,7 @@ $(document).ready(function() {
                         <optgroup label="📋 Tabel Operasi Standard">
                             ${operationsData.map(op => `
                                 <option value="${op.kode} - ${op.nama_tindakan}" ${preselectedKode && preselectedKode === op.kode ? 'selected' : ''}>
-                                    ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                                    ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
                                 </option>
                             `).join('')}
                         </optgroup>
@@ -452,10 +593,6 @@ $(document).ready(function() {
         });
     }
 
-    function formatNumber(num) {
-        return parseFloat(num).toLocaleString('id-ID');
-    }
-
     // ===== CALCULATION FUNCTIONS =====
 
     function calculateSurgeryFees() {
@@ -513,138 +650,71 @@ $(document).ready(function() {
         populateExistingOperations();
     }
 
-            
-            // Add filtered operations
-            if (filteredOperations && filteredOperations.length > 0) {
-                filteredOperations.forEach(op => {
-                    optionsHtml += `
-                        <option value="${op.kode} - ${op.nama_tindakan}">
-                            ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
-                        </option>
-                    `;
-                });
-            }
-            
-            // Destroy Select2 if it exists
-            if (selectElement.data('select2')) {
-                selectElement.select2('destroy');
-            }
-            
-            // Update select element
-            selectElement.html(optionsHtml);
-            
-            // Try to restore previous value if it still exists
-            if (currentValue) {
-                const optionExists = selectElement.find(`option[value="${currentValue}"]`).length > 0;
-                if (optionExists) {
-                    selectElement.val(currentValue);
-                }
-            }
-            
-            // Reinitialize Select2 for the updated row
-            selectElement.select2({
-                theme: 'bootstrap-5',
-                placeholder: '-- Cari dan Pilih Tindakan Operasi --',
-                allowClear: true,
-                width: '100%',
-                language: {
-                    noResults: function() {
-                        return "Tindakan tidak ditemukan";
-                    },
-                    searching: function() {
-                        return "Mencari...";
-                    },
-                    inputTooShort: function() {
-                        return "Ketik untuk mencari tindakan...";
-                    }
-                }
-            });
-            
-            // Trigger change event
-            selectElement.trigger('change');
+    function calculateTotal() {
+        // Parse currency values - remove dots/separators and convert to number
+        function parseValue(val) {
+            if (!val) return 0;
+            return parseInt(String(val).replace(/\./g, '').replace(/,/g, '') || '0');
         }
-    }
-    
-    // Helper function to format numbers
-    function formatNumber(num) {
-        return parseFloat(num).toLocaleString('id-ID');
-    }
-    
-    // Check if kelas is already selected on page load and filter accordingly
-    const initialKelas = $('#kelas').val();
-    if (initialKelas) {
-        console.log('Initial kelas selected on edit page:', initialKelas);
-        $('#kelas').trigger('change');
-    }
 
-    $('#calculateSurgeryBtn, .operation-select, .percentage-select, #sifat_operasi').change(function() {
-        calculateSurgeryFees();
-    });
-
-    function calculateSurgeryFees() {
+        // Collect all cost data
         const data = {
-            sifat_operasi: $('#sifat_operasi').val(),
-            tabel_operasi1: $('#tabel_operasi1').val(),
-            tabel_operasi2: $('#tabel_operasi2').val(),
-            tabel_operasi3: $('#tabel_operasi3').val(),
-            tabel_operasi4: $('#tabel_operasi4').val(),
-            persentase_operasi1: $('#persentase_operasi1').val(),
-            persentase_operasi2: $('#persentase_operasi2').val(),
-            persentase_operasi3: $('#persentase_operasi3').val(),
-            persentase_operasi4: $('#persentase_operasi4').val()
+            konsultasi_pre_tindakan: parseValue($('[name="konsultasi_pre_tindakan"]').val()) || 0,
+            diagnostic_pre_tindakan: parseValue($('[name="diagnostic_pre_tindakan"]').val()) || 0,
+            surgeon: parseValue($('#surgeon').val()) || 0,
+            anesthesi: parseValue($('#anesthesi').val()) || 0,
+            ot_room_charge: parseValue($('#ot_room_charge').val()) || 0,
+            recovery_room_charge: parseValue($('[name="recovery_room_charge"]').val()) || 0,
+            alat: parseValue($('[name="alat"]').val()) || 0,
+            diagnostic: parseValue($('[name="diagnostic"]').val()) || 0,
+            medical_equipment: parseValue($('[name="medical_equipment"]').val()) || 0,
+            obat_dan_alkes: parseValue($('[name="obat_dan_alkes"]').val()) || 0,
+            tarif_kamar: parseValue($('#tarif_kamar').val()) || 0
         };
 
-        $.ajax({
-            url: '/api/calculate-surgery-fees',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function(response) {
-                if (response.success) {
-                    $('#surgeon').val(response.data.surgeon);
-                    $('#anesthesi').val(response.data.anesthesi);
-                    $('#ot_room_charge').val(response.data.ot_room_charge);
-                    calculateTotal();
-                }
-            }
-        });
+        // Calculate total
+        let total = 0;
+        for (const key in data) {
+            total += data[key];
+        }
+
+        // Format and display total
+        $('#total').val(total.toLocaleString('id-ID'));
+        console.log('Total Biaya:', total);
     }
 
+    // Trigger calculation when any cost input changes
     $('.cost-input').on('input', function() {
         calculateTotal();
     });
 
-    $('#calculateTotalBtn').click(function() {
-        calculateTotal();
-    });
-
-    function calculateTotal() {
-        const data = {
-            konsultasi_pre_tindakan: $('[name="konsultasi_pre_tindakan"]').val() || 0,
-            diagnostic_pre_tindakan: $('[name="diagnostic_pre_tindakan"]').val() || 0,
-            surgeon: $('#surgeon').val() || 0,
-            anesthesi: $('#anesthesi').val() || 0,
-            ot_room_charge: $('#ot_room_charge').val() || 0,
-            recovery_room_charge: $('[name="recovery_room_charge"]').val() || 0,
-            alat: $('[name="alat"]').val() || 0,
-            diagnostic: $('[name="diagnostic"]').val() || 0,
-            medical_equipment: $('[name="medical_equipment"]').val() || 0,
-            obat_dan_alkes: $('[name="obat_dan_alkes"]').val() || 0,
-            tarif_kamar: $('#tarif_kamar').val() || 0
-        };
-
-        $.ajax({
-            url: '/api/calculate-total',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function(response) {
-                if (response.success) {
-                    $('#total').val(response.total);
-                }
+    // Form submission
+    $('#pboForm').submit(function(e) {
+        e.preventDefault();
+        
+        // Collect all form data
+        const formData = new FormData(this);
+        const operations = [];
+        
+        $('.operation-row').each(function() {
+            const rowId = $(this).data('row-id');
+            const kode = $(`#operation_kode_${rowId}`).val();
+            const persentase = $(`#operation_persentase_${rowId}`).val();
+            
+            if (kode && kode.trim()) {
+                operations.push({
+                    kode: kode.split(' - ')[0].trim(),
+                    persentase: persentase
+                });
             }
         });
-    }
+        
+        // Add operations to form data
+        formData.append('operations_json', JSON.stringify(operations));
+        
+        // Submit form
+        $(this)[0].submit();
+    });
 });
 </script>
 {% endblock %}

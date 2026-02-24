@@ -404,7 +404,7 @@ $(document).ready(function() {
                 operationsData.forEach(op => {
                     optionsHtml += `
                         <option value="${op.kode} - ${op.nama_tindakan}">
-                            ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                            ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
                         </option>
                     `;
                 });
@@ -666,7 +666,7 @@ $(document).ready(function() {
                         <optgroup label="📋 Tabel Operasi Standard">
                             ${operationsData.map(op => `
                                 <option value="${op.kode} - ${op.nama_tindakan}">
-                                    ${op.kode} - ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
+                                    ${op.nama_tindakan} (Dokter: Rp ${formatNumber(op.biaya_dokter)}, RS: Rp ${formatNumber(op.biaya_rs)})
                                 </option>
                             `).join('')}
                         </optgroup>

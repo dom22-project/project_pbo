@@ -80,3 +80,7 @@
 # tmp/
 # temp/
 # *.tmp
+__pycache__/ 
+*.pyc 
+venv/ 
+.env 
